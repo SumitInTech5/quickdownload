@@ -58,6 +58,5 @@ export const api = {
       body: JSON.stringify({ source, target_format, bitrate, sample_rate, confirmed: true }),
     }),
   job: (id: string) => call<JobStatus>(`/jobs/${encodeURIComponent(id)}`),
-  report: (payload: { url: string; reason: string; contact: string }) =>
-    call<{ ok: true }>("/report", { method: "POST", body: JSON.stringify(payload) }),
 };
+
