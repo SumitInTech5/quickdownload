@@ -88,8 +88,9 @@ function BackendNotice() {
           <p className="mt-1 text-muted-foreground">
             Set <code className="rounded bg-muted px-1 py-0.5">VITE_API_BASE_URL</code> to your
             backend host. Expected endpoints: <code>POST /detect</code>, <code>POST /download</code>,{" "}
-            <code>POST /convert</code>, <code>GET /jobs/:id</code>, <code>POST /report</code>.
+            <code>POST /convert</code>, <code>GET /jobs/:id</code>.
             Submitting any form below will return a friendly error until the backend is wired.
+
           </p>
         </div>
       </CardContent>

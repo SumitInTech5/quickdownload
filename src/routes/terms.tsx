@@ -51,9 +51,10 @@ function Terms() {
           the courts of that jurisdiction.
         </Section>
         <Section n="9" title="Changes">
-          We may update these Terms from time to time. We will post changes on this page and, where appropriate, notify registered
-          users by email. Continued use after changes constitutes acceptance.
+          We may update these Terms from time to time. We will post changes on this page. Continued use after changes
+          constitutes acceptance.
         </Section>
+
       </article>
     </PageShell>
   );

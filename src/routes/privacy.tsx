@@ -20,27 +20,27 @@ function Privacy() {
       <article className="container mx-auto max-w-3xl space-y-8 px-4 py-12">
         <Block title="Data we collect">
           We collect only what's needed to operate the service: the URL you submit, technical job metadata
-          (timestamps, status, errors), and the IP address making the request. If you create an account, we store your
-          email and authentication details.
+          (timestamps, status, errors), and the IP address making the request.
         </Block>
         <Block title="How we use data">
-          To process your downloads and conversions, enforce rate limits, prevent abuse, respond to support requests,
-          and investigate copyright reports. We do not sell your personal data.
+          To process your downloads and conversions, enforce rate limits, prevent abuse, and investigate
+          copyright reports. We do not sell your personal data.
         </Block>
         <Block title="Retention">
-          Output files are stored temporarily in S3-compatible storage and auto-purged shortly after delivery. Job
-          metadata is retained briefly for support and abuse-prevention purposes, then deleted.
+          Output files are stored temporarily and auto-purged shortly after delivery. Job metadata is
+          retained briefly for support and abuse-prevention purposes, then deleted.
         </Block>
         <Block title="Cookies">
           We use only the cookies necessary for session management and security. No third-party advertising trackers.
         </Block>
         <Block title="Your rights">
-          You may request access to, correction of, or deletion of personal data we hold about you by emailing
-          support@allvideodownloader.example.
+          You may request access to, correction of, or deletion of personal data we hold about you via the
+          in-app AI assistant on the Help page.
         </Block>
         <Block title="Changes">
           We may update this Policy from time to time and will post changes on this page.
         </Block>
+
       </article>
     </PageShell>
   );
