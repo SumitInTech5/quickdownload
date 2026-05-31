@@ -71,6 +71,10 @@ function Help() {
           </CardContent>
         </Card>
       </section>
+
+      <section className="container mx-auto px-4 py-8">
+        <AiHelpChat />
+      </section>
     </PageShell>
   );
 }
