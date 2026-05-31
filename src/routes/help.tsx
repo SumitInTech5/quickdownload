@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { api, isBackendConfigured } from "@/lib/api";
+import { AiHelpChat } from "@/components/AiHelpChat";
 
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -69,6 +70,10 @@ function Help() {
             <ReportForm />
           </CardContent>
         </Card>
+      </section>
+
+      <section className="container mx-auto px-4 py-8">
+        <AiHelpChat />
       </section>
     </PageShell>
   );
