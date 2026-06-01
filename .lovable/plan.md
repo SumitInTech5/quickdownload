@@ -1,38 +1,77 @@
+
 # Plan
 
-## 1. Help page — keep only AI assistance
-`src/routes/help.tsx` becomes a thin shell that renders `<AiHelpChat />` inside `PageShell` + `PageHeader`. Remove:
-- Helpline card (phone, email)
-- "Report content / takedown" card and the entire `ReportForm` function
-- Unused imports (`Headphones`, `Mail`, `Phone`, `MessageSquareWarning`, `Loader2`, `Input`, `Label`, `Textarea`, `Button`, `Card*`, `z`, `toast`, `useState`, `api`, `isBackendConfigured`)
-- Updated meta description: "Chat with our AI assistant for help."
+## 1. Backend — RapidAPI proxy with hardening
 
-## 2. Strip emails / phones / contact links everywhere
-- **`src/components/SiteFooter.tsx`**: remove the `Headphones` phone line; drop the entire "Support" column's `Contact` link; keep `Help` link only. Remove `Headphones` import.
-- **`src/routes/contact.tsx`**: keep route + page shell, but remove the email/phone card entirely and remove the email field from the form. Form becomes name + message only (no real submit backend — same simulated toast as today). Drop `Mail`, `Phone` imports.
-- **`src/routes/privacy.tsx`**: rewrite the "Your rights" block to say requests are handled via the in-app AI assistant on `/help` (no email address). Remove the line about storing user email under "Data we collect" since accounts aren't part of this build.
-- **`src/routes/terms.tsx`**: section 9 — replace "notify registered users by email" with "post a notice on this page".
-- Leave `Contact` in the header? It's not in nav. The header has Home/Tool/How it works/FAQ/Help. No change there.
+Add three server routes under `src/routes/api/` that proxy to a RapidAPI "all-in-one" downloader. No media is read, buffered, or stored on our server — we only return upstream JSON (metadata + direct upstream URLs the user's browser fetches).
 
-## 3. Backend for downloads/audio
-User confirmed they will host yt-dlp elsewhere. No backend code added in this repo. The existing client `src/lib/api.ts` already targets `VITE_API_BASE_URL` with the right `/detect`, `/download`, `/convert`, `/jobs/:id` contract. I will:
-- Keep `api.ts` but remove the `report` method (no longer used).
-- Update the in-app `BackendNotice` on `/tool` to drop mention of `/report`.
-- Add a short "Connecting your backend" section to `README.md` documenting env var + endpoint contract so the user can wire their externally hosted server.
+- `src/routes/api/detect.ts` — POST `{ url, copyright_confirmed }` → returns title, thumbnail, available streams.
+- `src/routes/api/download.ts` — POST `{ url, format_id, copyright_confirmed }` → returns `{ download_url, expires_at }` (a direct, time-limited upstream link). Client triggers browser download from that URL; nothing transits our worker.
+- `src/routes/api/convert.ts` — POST `{ url, target_format, bitrate?, copyright_confirmed }` → forwards to RapidAPI conversion endpoint, returns `{ download_url, expires_at }`.
 
-The AI chat backend (`src/routes/api/chat.ts` + `src/lib/ai-gateway.server.ts`) stays — it powers the only Help feature.
+Shared helper `src/lib/downloader.server.ts`:
+- Zod schemas for inputs (URL max 2048 chars, format whitelist, bitrate whitelist).
+- `validatePublicUrl(url)`:
+  - parses with `new URL()`
+  - protocol must be `http:` or `https:`
+  - hostname is not an IP literal
+  - hostname is not localhost / `.local` / `.internal`
+  - rejects private ranges (10/8, 172.16/12, 192.168/16, 169.254/16, ::1, fc00::/7)
+  - optional host allow-list via env `ALLOWED_HOSTS` (comma-sep)
+- `requireCopyright(flag)` — throws 400 if not exactly `true`.
+- `callRapidApi(path, body)` — fetch wrapper using `RAPIDAPI_KEY` + `RAPIDAPI_HOST`, 15s timeout, no-store.
+- `logEvent(event)` — minimal structured `console.log` with timestamp, route, hashed URL (sha-256, first 12 hex), status. **No raw URL, no IP, no user agent, no media** kept anywhere.
 
-## 4. Remove unnecessary files
-Confirmed unused after the changes above:
-- `src/lib/api/example.functions.ts` — template stub, not imported anywhere
-- Nothing else in `src/` is orphaned (verified imports). shadcn UI components stay — pruning them risks breaking future edits and is low value.
+Each route:
+- OPTIONS handler + CORS headers (same-origin in practice, included for safety).
+- Validates body with Zod → `validatePublicUrl` → `requireCopyright` → calls upstream → returns JSON.
+- On error returns `{ error }` with proper status; never leaks upstream error bodies verbatim.
 
-## 5. Verify
-- After edits, the build should pass with no unresolved imports.
-- Visit `/help`, `/contact`, `/privacy`, `/terms` and footer in preview to confirm no emails/phones remain.
-- Confirm `/tool` notice text no longer references `/report`.
+Secrets to add via `add_secret`: `RAPIDAPI_KEY`, `RAPIDAPI_HOST` (e.g. `all-media-downloader1.p.rapidapi.com` — user can adjust).
+
+## 2. Client wiring
+
+- `src/lib/api.ts` — repoint to local routes (`/api/detect`, `/api/download`, `/api/convert`); drop `VITE_API_BASE_URL`. Remove `isBackendConfigured` (always true now) and update callers.
+- `src/routes/tool.tsx`:
+  - Add required **Copyright confirmation checkbox**: "I confirm I own this content or have the right to download it." Disable submit until checked. Send `copyright_confirmed: true` on every call.
+  - Remove `BackendNotice` block (backend now built-in).
+  - On `download`/`convert` success, do `window.location.assign(download_url)` (or `<a download>` click) so the upstream link triggers a browser download — file never touches our server.
+
+## 3. Cleanup — files & routes to remove
+
+- Delete `src/routes/contact.tsx`.
+- Remove "Contact" entries from `SiteHeader.tsx` nav (if any) and `SiteFooter.tsx`.
+- Delete unused imports/dead code in `api.ts` (already partly done).
+- Verify no orphan imports of `contact` or `isBackendConfigured` remain.
+
+Skipping: shadcn primitives left in place (low value to prune).
+
+## 4. Footer text tweak
+
+`src/components/SiteFooter.tsx`: replace
+`Governed by the laws of [Your Jurisdiction].` → `Governed by the Laws.`
+
+## 5. Privacy/Terms touch-ups
+
+- `src/routes/privacy.tsx`: add one line confirming "We do not store your downloaded media. Requests are proxied; only minimal anonymized logs (hashed URL, timestamp, status) are kept."
+- `src/routes/terms.tsx`: ensure copyright-confirmation requirement is mentioned in the user-obligations section.
+
+## 6. Verify
+
+- Build passes; no unresolved imports.
+- `/tool` shows copyright checkbox, submit disabled until checked.
+- `/contact` 404s (and isn't linked anywhere).
+- Footer shows "Governed by the Laws."
+- Manually hit `/api/detect` with a bad URL → 400; without `copyright_confirmed` → 400; with valid URL + flag → 200 (once RapidAPI key set).
 
 ## Out of scope
-- No new server route for downloading (Cloudflare Worker can't run yt-dlp; user is hosting it themselves).
-- No deletion of shadcn UI primitives.
-- No header/nav restructuring beyond what's listed.
+
+- Rate limiting (per platform rules).
+- Auth — none required for this flow.
+- Persisting any job history or media.
+
+## Technical notes
+
+- Routes run on Cloudflare Workers — proxy only, no yt-dlp/ffmpeg locally. Media bytes never enter the worker.
+- Logging via `console.log` only; no DB writes.
+- Copyright flag is enforced server-side; the client checkbox is a UX layer, not the security boundary.
