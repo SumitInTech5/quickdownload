@@ -28,7 +28,8 @@ function Terms() {
         </Section>
         <Section n="3" title="User Representations">
           You represent and warrant that you have the legal right to download or convert any content you submit and that your use
-          complies with all applicable laws.
+          complies with all applicable laws. Each request requires you to actively confirm copyright compliance; submissions without
+          this confirmation are rejected by the service.
         </Section>
         <Section n="4" title="Copyright and Takedown">
           We respect copyright. If a rights holder submits a valid takedown request, we will remove the content and may suspend

@@ -15,8 +15,10 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as FaqRouteImport } from './routes/faq'
-import { Route as ContactRouteImport } from './routes/contact'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiDownloadRouteImport } from './routes/api/download'
+import { Route as ApiDetectRouteImport } from './routes/api/detect'
+import { Route as ApiConvertRouteImport } from './routes/api/convert'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const ToolRoute = ToolRouteImport.update({
@@ -49,14 +51,24 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDownloadRoute = ApiDownloadRouteImport.update({
+  id: '/api/download',
+  path: '/api/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDetectRoute = ApiDetectRouteImport.update({
+  id: '/api/detect',
+  path: '/api/detect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConvertRoute = ApiConvertRouteImport.update({
+  id: '/api/convert',
+  path: '/api/convert',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -67,7 +79,6 @@ const ApiChatRoute = ApiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -75,10 +86,12 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/convert': typeof ApiConvertRoute
+  '/api/detect': typeof ApiDetectRoute
+  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -86,11 +99,13 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/convert': typeof ApiConvertRoute
+  '/api/detect': typeof ApiDetectRoute
+  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -98,12 +113,14 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/convert': typeof ApiConvertRoute
+  '/api/detect': typeof ApiDetectRoute
+  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/contact'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -111,10 +128,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/convert'
+    | '/api/detect'
+    | '/api/download'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/contact'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -122,10 +141,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/convert'
+    | '/api/detect'
+    | '/api/download'
   id:
     | '__root__'
     | '/'
-    | '/contact'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -133,11 +154,13 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/convert'
+    | '/api/detect'
+    | '/api/download'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
   HelpRoute: typeof HelpRoute
   HowItWorksRoute: typeof HowItWorksRoute
@@ -145,6 +168,9 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ToolRoute: typeof ToolRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiConvertRoute: typeof ApiConvertRoute
+  ApiDetectRoute: typeof ApiDetectRoute
+  ApiDownloadRoute: typeof ApiDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -191,18 +217,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/download': {
+      id: '/api/download'
+      path: '/api/download'
+      fullPath: '/api/download'
+      preLoaderRoute: typeof ApiDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/detect': {
+      id: '/api/detect'
+      path: '/api/detect'
+      fullPath: '/api/detect'
+      preLoaderRoute: typeof ApiDetectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/convert': {
+      id: '/api/convert'
+      path: '/api/convert'
+      fullPath: '/api/convert'
+      preLoaderRoute: typeof ApiConvertRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -217,7 +257,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
   HelpRoute: HelpRoute,
   HowItWorksRoute: HowItWorksRoute,
@@ -225,6 +264,9 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ToolRoute: ToolRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiConvertRoute: ApiConvertRoute,
+  ApiDetectRoute: ApiDetectRoute,
+  ApiDownloadRoute: ApiDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

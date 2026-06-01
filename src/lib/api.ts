@@ -1,9 +1,6 @@
-// Thin client for the BYO backend (yt-dlp + ffmpeg server you host).
-// Configure VITE_API_BASE_URL to point at your backend.
-
-export const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
-
-export const isBackendConfigured = () => Boolean(API_BASE && API_BASE.length > 0);
+// Thin client for the in-app proxy backend (see src/routes/api/*).
+// All requests require copyright confirmation. No media is stored server-side;
+// download/convert return a direct upstream link the browser fetches.
 
 export interface MediaStream {
   id: string;
@@ -21,42 +18,40 @@ export interface DetectResponse {
   streams: MediaStream[];
 }
 
-export interface JobStatus {
-  status: "queued" | "processing" | "done" | "error";
-  progress: number; // 0..100
-  downloadUrl?: string;
-  error?: string;
+export interface MediaLink {
+  download_url: string;
+  expires_at?: string | null;
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!isBackendConfigured()) {
-    throw new Error("Backend not configured. Set VITE_API_BASE_URL.");
-  }
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
-  if (res.status === 429) throw new Error("Rate limit reached. Please wait a moment and try again.");
+  const text = await res.text();
+  let json: unknown = null;
+  try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || `Request failed (${res.status})`);
+    const msg = (json && typeof json === "object" && "error" in (json as Record<string, unknown>))
+      ? String((json as Record<string, unknown>).error)
+      : `Request failed (${res.status})`;
+    throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+  return json as T;
 }
 
 export const api = {
   detect: (url: string) =>
-    call<DetectResponse>("/detect", { method: "POST", body: JSON.stringify({ url }) }),
+    post<DetectResponse>("/api/detect", { url, copyright_confirmed: true }),
   download: (url: string, streamId: string) =>
-    call<{ job_id: string }>("/download", {
-      method: "POST",
-      body: JSON.stringify({ url, stream_id: streamId, confirmed: true }),
+    post<MediaLink>("/api/download", { url, format_id: streamId, copyright_confirmed: true }),
+  convert: (url: string, target_format: string, bitrate?: string, sample_rate?: string) =>
+    post<MediaLink>("/api/convert", {
+      url,
+      target_format,
+      bitrate,
+      sample_rate,
+      copyright_confirmed: true,
     }),
-  convert: (source: string, target_format: string, bitrate?: string, sample_rate?: string) =>
-    call<{ job_id: string }>("/convert", {
-      method: "POST",
-      body: JSON.stringify({ source, target_format, bitrate, sample_rate, confirmed: true }),
-    }),
-  job: (id: string) => call<JobStatus>(`/jobs/${encodeURIComponent(id)}`),
 };
-
