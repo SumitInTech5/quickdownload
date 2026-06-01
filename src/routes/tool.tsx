@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Download, Shuffle, Loader2, Link2, Trash2, Plus, Copy, Check, AlertTriangle, FileAudio, FileVideo } from "lucide-react";
+import { Download, Shuffle, Loader2, Link2, Trash2, Plus, Check, FileAudio, FileVideo } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, isBackendConfigured, type DetectResponse, type MediaStream } from "@/lib/api";
+import { api, type DetectResponse, type MediaStream } from "@/lib/api";
 
 export const Route = createFileRoute("/tool")({
   head: () => ({
@@ -41,10 +40,17 @@ interface QueueItem {
   id: string;
   url: string;
   status: "queued" | "processing" | "done" | "error";
-  progress: number;
-  jobId?: string;
-  downloadUrl?: string;
   error?: string;
+  downloadUrl?: string;
+}
+
+function triggerBrowserDownload(url: string) {
+  // Direct upstream link — bytes never transit our server.
+  const a = document.createElement("a");
+  a.href = url;
+  a.rel = "noopener";
+  a.target = "_blank";
+  a.click();
 }
 
 function ToolPage() {
@@ -56,7 +62,6 @@ function ToolPage() {
         description="Paste a public page URL. We'll detect every available stream, then you choose what to download or convert."
       />
       <div className="container mx-auto px-4 py-10 md:py-14">
-        {!isBackendConfigured() && <BackendNotice />}
         <Tabs defaultValue="single" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="single">Detect</TabsTrigger>
@@ -75,26 +80,6 @@ function ToolPage() {
         </Tabs>
       </div>
     </PageShell>
-  );
-}
-
-function BackendNotice() {
-  return (
-    <Card className="mb-6 border-accent/50 bg-accent/5">
-      <CardContent className="flex gap-3 p-5">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-accent-foreground" aria-hidden />
-        <div className="text-sm">
-          <p className="font-semibold">Backend not configured — UI demo mode</p>
-          <p className="mt-1 text-muted-foreground">
-            Set <code className="rounded bg-muted px-1 py-0.5">VITE_API_BASE_URL</code> to your
-            backend host. Expected endpoints: <code>POST /detect</code>, <code>POST /download</code>,{" "}
-            <code>POST /convert</code>, <code>GET /jobs/:id</code>.
-            Submitting any form below will return a friendly error until the backend is wired.
-
-          </p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -202,9 +187,10 @@ function DetectPanel() {
           onConfirm={async () => {
             if (!picked || !url) return;
             try {
-              const { job_id } = await api.download(url, picked.id);
+              const { download_url } = await api.download(url, picked.id);
               setConfirmOpen(false);
-              toast.success("Download started", { description: `Job ${job_id}` });
+              triggerBrowserDownload(download_url);
+              toast.success("Download started in a new tab");
             } catch (err) {
               toast.error((err as Error).message);
             }
@@ -222,7 +208,6 @@ function ConvertPanel() {
   const [bitrate, setBitrate] = useState("192k");
   const [sampleRate, setSampleRate] = useState("44100");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
 
   return (
     <Card>
@@ -284,18 +269,16 @@ function ConvertPanel() {
           Convert
         </Button>
 
-        {jobId && <JobStatusRow jobId={jobId} />}
-
         <CopyrightDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           actionLabel="Start conversion"
           onConfirm={async () => {
             try {
-              const { job_id } = await api.convert(source, target, bitrate, sampleRate);
-              setJobId(job_id);
+              const { download_url } = await api.convert(source, target, bitrate, sampleRate);
               setConfirmOpen(false);
-              toast.success("Conversion started", { description: `Job ${job_id}` });
+              triggerBrowserDownload(download_url);
+              toast.success("Conversion ready — download started");
             } catch (err) {
               toast.error((err as Error).message);
             }
@@ -316,7 +299,7 @@ function BatchPanel() {
     const parsed = urlSchema.safeParse(input.trim());
     if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? "Invalid URL");
     if (items.length >= 25) return toast.error("Maximum 25 URLs per batch");
-    setItems((it) => [...it, { id: crypto.randomUUID(), url: parsed.data, status: "queued", progress: 0 }]);
+    setItems((it) => [...it, { id: crypto.randomUUID(), url: parsed.data, status: "queued" }]);
     setInput("");
   }
 
@@ -333,8 +316,9 @@ function BatchPanel() {
         const detected = await api.detect(item.url);
         const best = detected.streams[0];
         if (!best) throw new Error("No streams detected");
-        const { job_id } = await api.download(item.url, best.id);
-        setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, jobId: job_id, status: "done", progress: 100 } : x));
+        const { download_url } = await api.download(item.url, best.id);
+        triggerBrowserDownload(download_url);
+        setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "done", downloadUrl: download_url } : x));
       } catch (err) {
         setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "error", error: (err as Error).message } : x));
       }
@@ -370,11 +354,14 @@ function BatchPanel() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{it.url}</div>
                     <div className="mt-1 flex items-center gap-2">
-                      <Progress value={it.progress} className="h-1.5" />
                       <StatusBadge status={it.status} />
+                      {it.downloadUrl && (
+                        <a href={it.downloadUrl} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs text-primary underline">
+                          <Check className="size-3" /> Open
+                        </a>
+                      )}
                     </div>
                     {it.error && <div className="mt-1 text-xs text-destructive">{it.error}</div>}
-                    {it.jobId && <JobIdChip id={it.jobId} />}
                   </div>
                   <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => remove(it.id)}>
                     <Trash2 className="size-4" />
@@ -409,59 +396,6 @@ function StatusBadge({ status }: { status: QueueItem["status"] }) {
     error: { label: "Error", variant: "destructive" as const },
   };
   return <Badge variant={map[status].variant} className="shrink-0 text-[10px]">{map[status].label}</Badge>;
-}
-
-function JobIdChip({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => { navigator.clipboard.writeText(id); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      className="mt-1 inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary"
-      aria-label={`Copy job ID ${id}`}
-    >
-      Job {id} {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-    </button>
-  );
-}
-
-function JobStatusRow({ jobId }: { jobId: string }) {
-  const [status, setStatus] = useState<{ status: string; progress: number; downloadUrl?: string; error?: string }>({ status: "queued", progress: 0 });
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let delay = 1000;
-    let cancelled = false;
-    async function poll() {
-      try {
-        const s = await api.job(jobId);
-        if (cancelled) return;
-        setStatus(s);
-        if (s.status === "done" || s.status === "error") return;
-        delay = Math.min(delay * 1.4, 5000);
-        timer.current = setTimeout(poll, delay);
-      } catch {
-        if (cancelled) return;
-        timer.current = setTimeout(poll, 3000);
-      }
-    }
-    poll();
-    return () => { cancelled = true; if (timer.current) clearTimeout(timer.current); };
-  }, [jobId]);
-
-  return (
-    <div className="rounded-lg border border-border bg-secondary/40 p-4">
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="font-medium">Job {jobId}</span>
-        <Badge variant={status.status === "error" ? "destructive" : "secondary"}>{status.status}</Badge>
-      </div>
-      <Progress value={status.progress} className="mt-2 h-2" />
-      {status.downloadUrl && (
-        <a href={status.downloadUrl} className="mt-2 inline-flex text-sm text-primary underline">Download file</a>
-      )}
-      {status.error && <p className="mt-2 text-sm text-destructive">{status.error}</p>}
-    </div>
-  );
 }
 
 function CopyrightDialog({

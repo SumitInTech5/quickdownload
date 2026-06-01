@@ -38,7 +38,7 @@ export function SiteFooter() {
       <div className="border-t border-border">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground md:flex-row">
           <span>© {new Date().getFullYear()} All Video Downloader. All rights reserved.</span>
-          <span>Governed by the laws of [Your Jurisdiction].</span>
+          <span>Governed by the Laws.</span>
         </div>
       </div>
     </footer>
