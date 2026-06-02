@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Menu } from "lucide-react";
 import { useState } from "react";
+import logoIcon from "@/assets/logo-icon.png";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,12 +24,13 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-semibold">
-          <span
-            aria-hidden
-            className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground"
-          >
-            <Download className="size-4" />
-          </span>
+          <img
+            src={logoIcon}
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 rounded-md"
+          />
           <span>All Video Downloader</span>
         </Link>
 

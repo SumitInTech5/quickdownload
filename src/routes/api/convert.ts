@@ -41,7 +41,7 @@ export const Route = createFileRoute("/api/convert")({
           };
           if (input.bitrate) query.bitrate = input.bitrate;
           if (input.sample_rate) query.sample_rate = input.sample_rate;
-          const upstream = await callRapidApi<UpstreamConvert>("/v2/convert", {
+          const upstream = await callRapidApi<UpstreamConvert>("/v2/misc/convert", {
             method: "GET",
             query,
           });
