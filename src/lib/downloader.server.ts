@@ -125,13 +125,15 @@ export function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+export const RAPIDAPI_HOST = "all-media-downloader1.p.rapidapi.com";
+
 export async function callRapidApi<T = unknown>(
   path: string,
   init: { method?: "GET" | "POST"; query?: Record<string, string>; body?: unknown } = {},
 ): Promise<T> {
   const key = process.env.RAPIDAPI_KEY;
-  const host = process.env.RAPIDAPI_HOST;
-  if (!key || !host) throw httpError(500, "Downloader backend is not configured");
+  if (!key) throw httpError(503, "Downloader backend is not configured (missing RAPIDAPI_KEY)");
+  const host = process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
 
   const url = new URL(path, `https://${host}`);
   if (init.query) {
@@ -153,7 +155,9 @@ export async function callRapidApi<T = unknown>(
       cache: "no-store",
     });
     if (!res.ok) {
-      throw new HttpError(res.status === 429 ? 429 : 502, `Upstream error (${res.status})`);
+      const snippet = (await res.text().catch(() => "")).slice(0, 200);
+      const status = res.status === 429 ? 429 : 502;
+      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`);
     }
     return (await res.json()) as T;
   } catch (err) {
