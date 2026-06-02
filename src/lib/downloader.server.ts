@@ -67,14 +67,16 @@ export function validatePublicUrl(raw: string): URL {
 
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  upstreamStatus?: number;
+  constructor(status: number, message: string, upstreamStatus?: number) {
     super(message);
     this.status = status;
+    this.upstreamStatus = upstreamStatus;
   }
 }
 
-export function httpError(status: number, message: string) {
-  return new HttpError(status, message);
+export function httpError(status: number, message: string, upstreamStatus?: number) {
+  return new HttpError(status, message, upstreamStatus);
 }
 
 export async function hashUrl(raw: string): Promise<string> {
