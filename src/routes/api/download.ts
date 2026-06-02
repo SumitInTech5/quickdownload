@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {
-  callRapidApi,
   copyrightFlag,
   corsResponse,
   formatIdInput,
@@ -9,32 +8,13 @@ import {
   urlInput,
   validatePublicUrl,
 } from "@/lib/downloader.server";
+import { tryProviders, b64urlDecode } from "@/lib/providers.server";
 
 const schema = z.object({
   url: urlInput,
   format_id: formatIdInput,
   copyright_confirmed: copyrightFlag,
 });
-
-interface UpstreamDownload {
-  url?: string;
-  download_url?: string;
-  link?: string;
-  expires_at?: string;
-  data?: { url?: string; download_url?: string; link?: string; expires_at?: string };
-}
-
-function b64urlDecode(s: string): string | null {
-  try {
-    const padded = s.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
-    const decoded = atob(padded + pad);
-    if (!/^https?:\/\//i.test(decoded)) return null;
-    return decoded;
-  } catch {
-    return null;
-  }
-}
 
 export const Route = createFileRoute("/api/download")({
   server: {
@@ -45,30 +25,23 @@ export const Route = createFileRoute("/api/download")({
           const input = schema.parse(body);
           const u = validatePublicUrl(input.url);
 
-          // Preferred path: the format_id is a base64url-encoded direct upstream
-          // URL from /api/detect. Validate it's public and return it directly
-          // — no second upstream call, no buffering, no storage.
+          // Fast path: stream id is a base64url direct URL from /api/detect.
+          // Validate and return without any upstream call — no buffering, no storage.
           const decoded = b64urlDecode(input.format_id);
           if (decoded) {
             const direct = validatePublicUrl(decoded);
             return {
               url: u.toString(),
-              data: { download_url: direct.toString(), expires_at: null },
+              data: { download_url: direct.toString(), expires_at: null as string | null },
             };
           }
 
-          // Fallback: ask upstream to resolve the format id.
-          const upstream = await callRapidApi<UpstreamDownload>("/v2/video/download", {
-            method: "GET",
-            query: { url: u.toString(), format: input.format_id },
-          });
-          const root = upstream.data ?? upstream;
-          const link = root.url ?? root.download_url ?? root.link;
-          if (!link) throw new Error("Upstream returned no download link");
-          return {
-            url: u.toString(),
-            data: { download_url: link, expires_at: root.expires_at ?? null },
-          };
+          const data = await tryProviders(
+            (p) => p.download(u.toString(), input.format_id),
+            "download",
+            u.toString(),
+          );
+          return { url: u.toString(), data };
         }),
     },
   },

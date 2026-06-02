@@ -1,45 +1,61 @@
-# Fix upstream 403 + add site icon
+# Resilient detect/download/convert with fallback + health check
 
-## Root cause of 403
-Our proxy calls generic `/v2/info` paths against an undefined host. RapidAPI returns 403 because the request is hitting the wrong host/endpoint without the required `X-RapidAPI-Host` header. The ytjar "All-in-One Downloader" uses:
+## 1. Backend: provider abstraction with auto-fallback
 
-- Host: `all-media-downloader1.p.rapidapi.com`
-- `GET /v2/misc/info?url=...` (metadata + formats)
-- `GET /v2/video/download?url=...&format=...` (direct link)
-- `GET /v2/misc/convert?url=...&format=mp3&bitrate=...`
+**New `src/lib/providers.server.ts`** — abstraction over RapidAPI providers.
+Each provider exports: `host`, `detect(url)`, `download(url, formatId)`, `convert(url, format, bitrate?)`, normalized to the response shapes our routes already return.
 
-All requests require headers `X-RapidAPI-Key` and `X-RapidAPI-Host`.
+- **Primary**: `ytjar` (`all-media-downloader1.p.rapidapi.com`) — move existing mapping logic from `detect.ts`/`download.ts`/`convert.ts` here.
+- **Fallback**: `dataFanatic` (`social-media-video-downloader.p.rapidapi.com`) — endpoints `/smvd/get/all?url=` for metadata+links; uses same `X-RapidAPI-Key`.
 
-## Changes
+**New `tryProviders(op, ...args)`** helper: runs primary; on `HttpError` with upstream 403/451/410/404, retries with fallback. Other errors (timeout, 5xx, 429) propagate so the client retry can handle them. Logs which provider served the result (no URL, only hash).
 
-### 1. `src/lib/downloader.server.ts`
-- Hard-code `RAPIDAPI_HOST = "all-media-downloader1.p.rapidapi.com"` (no longer a secret — host is public; key stays in `RAPIDAPI_KEY`).
-- Update `callRapidApi` to always send `X-RapidAPI-Key` + `X-RapidAPI-Host` and build URL as `https://${HOST}${path}?${query}`.
-- Surface upstream body snippet in error message (still hashed-URL logging only) so future failures are diagnosable without leaking PII.
-- Add fallback: if `RAPIDAPI_KEY` is missing, return a clean 503 "Backend not configured" instead of 502.
+**`src/lib/downloader.server.ts`**:
+- Surface the upstream status code on `HttpError` (new `upstreamStatus` field) so `tryProviders` can decide.
+- Keep current key handling.
 
-### 2. `src/routes/api/detect.ts`
-- Change path to `/v2/misc/info`.
-- Map ytjar response shape (`title`, `thumbnail`, `formats[]` with `url`, `ext`, `quality`, `filesize`, `has_audio`, `has_video`) into our `streams[]`. Use `has_video`/`has_audio` to classify kind. Pass the upstream direct `url` through as the stream id (base64-encoded) so `/api/download` can return it without a second info call.
+**Routes** `src/routes/api/{detect,download,convert}.ts`:
+- Replace direct `callRapidApi` calls with `tryProviders("detect"|"download"|"convert", …)`.
+- Map upstream 403 → return HTTP 502 with friendly message: `"This source is currently blocked by the upstream provider. We tried a fallback automatically — please try a different URL or retry in a moment."`.
 
-### 3. `src/routes/api/download.ts`
-- Decode the base64 `format_id` back to the upstream direct URL and return it as `download_url` immediately (no second upstream call, no buffering, no storage — matches the zero-storage policy).
-- If decode fails, fall back to `/v2/video/download?url=&format=`.
+## 2. Backend: health-check route
 
-### 4. `src/routes/api/convert.ts`
-- Switch to `/v2/misc/convert` with `url`, `format`, optional `bitrate`.
+**New `src/routes/api/health.ts`** — `GET /api/health`. Returns `{ status: "ok"|"degraded"|"down", providers: [{name, ok, latencyMs, status}], checkedAt }`.
 
-### 5. Site header icon
-- Generate a small square brand icon (download arrow over a stylized waveform, brand-colored, transparent background) via imagegen and save to `src/assets/logo-icon.png`.
-- Update `src/components/SiteHeader.tsx`: replace the current text-only mark with `<img src={logoIcon} alt="" className="h-7 w-7" />` next to the existing wordmark. Keep wordmark text, sizing, and link target unchanged.
+- Pings each provider's lightest endpoint (HEAD or a known cheap URL like ytjar `/v2/misc/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ`) with a 4s timeout.
+- `ok` = primary up. `degraded` = primary down but fallback up. `down` = both fail or key missing.
+- Caches result in module scope for 30s to avoid hammering RapidAPI on repeat loads.
+- CORS + OPTIONS like the other routes.
 
-### 6. Verification
-- After build, hit `/api/detect` with a YouTube URL via `stack_modern--invoke-server-function`; expect 200 with `title` + non-empty `streams[]`.
-- Hit `/api/download` with one returned stream id; expect 200 with `download_url`.
-- Confirm header shows new icon next to wordmark on `/`.
+## 3. Client: retry with exponential backoff
+
+**`src/lib/api.ts`**:
+- Add `withRetry<T>(fn, { attempts: 3, baseMs: 1000 })` wrapper. Delays: 1s → 2s → 4s.
+- Retry **only** on network errors, HTTP 5xx, 502, 503, 504, 408, 429. Never retry 4xx (400/401/403/404/422).
+- Wrap `detect`, `download`, `convert` in `withRetry`.
+- Throw typed `ApiError { status, message, retriable }` instead of plain `Error` so UI can branch.
+- Add `health()` call to hit `/api/health`.
+
+## 4. Client: progress states + health banner
+
+**`src/routes/tool.tsx`**:
+- Replace boolean `loading` with a `JobState` discriminated union: `idle | preparing | detecting | retrying({attempt, nextInMs}) | ready | downloading | converting | error({message, retriable})`.
+- Show a small inline progress strip above the input area:
+  - "Reading source… (attempt 2 of 3, retrying in 2s)" when retrying.
+  - "Fetching link…" during download.
+  - "Converting to MP3…" during convert.
+- On error, show the friendly message + a **Try again** button. If the error is non-retriable (4xx), include guidance ("Try a different URL or check that the link is public").
+- On `/tool` mount, call `api.health()` once. If `status === "down"`, render a dismissible **Alert banner** at the top of the page: "The downloader backend is currently unavailable. Please try again in a few minutes." If `degraded`, soft banner: "Running on fallback provider — some sources may be slower."
+- Use `sonner` toasts for transient retry notices (one toast per attempt).
+
+## 5. Verification
+- `GET /api/health` returns 200 JSON with provider statuses.
+- With a valid URL: detect succeeds via primary; mock a 403 to confirm fallback path (smoke check by temporarily routing primary to bad path — informational only, no code stays changed).
+- Network throttling / forcing 502 retries 3 times with visible backoff in UI.
+- Bad URL surfaces a clear, non-retriable error.
 
 ## Out of scope
-No DB, no auth, no rate limiting, no caching, no change to copyright gate, footer, or privacy/terms copy.
+- No queueing/persistence, no auth, no rate limiting, no UI redesign beyond the banner + progress strip, no changes to footer/privacy/copyright gate.
 
 ## Prereq
-`RAPIDAPI_KEY` secret must be set and subscribed to "All-in-One Downloader (by ytjar)" on RapidAPI. If detect still returns 403 after the fix, the key is not subscribed to that specific API on RapidAPI's dashboard — I'll surface the upstream message so it's obvious.
+`RAPIDAPI_KEY` must be subscribed to BOTH "All-in-One Downloader (ytjar)" and "Social Media Video Downloader (DataFanatic)" on RapidAPI. If only one is subscribed, health-check will mark the other as down and fallback won't help for sources only that one supports.

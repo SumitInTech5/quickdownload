@@ -16,6 +16,7 @@ import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiDownloadRouteImport } from './routes/api/download'
 import { Route as ApiDetectRouteImport } from './routes/api/detect'
 import { Route as ApiConvertRouteImport } from './routes/api/convert'
@@ -56,6 +57,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDownloadRoute = ApiDownloadRouteImport.update({
   id: '/api/download',
   path: '/api/download',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/api/convert': typeof ApiConvertRoute
   '/api/detect': typeof ApiDetectRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/health': typeof ApiHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/api/convert': typeof ApiConvertRoute
   '/api/detect': typeof ApiDetectRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/health': typeof ApiHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/api/convert': typeof ApiConvertRoute
   '/api/detect': typeof ApiDetectRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/health': typeof ApiHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/api/convert'
     | '/api/detect'
     | '/api/download'
+    | '/api/health'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/api/convert'
     | '/api/detect'
     | '/api/download'
+    | '/api/health'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/api/convert'
     | '/api/detect'
     | '/api/download'
+    | '/api/health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   ApiConvertRoute: typeof ApiConvertRoute
   ApiDetectRoute: typeof ApiDetectRoute
   ApiDownloadRoute: typeof ApiDownloadRoute
+  ApiHealthRoute: typeof ApiHealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/download': {
       id: '/api/download'
       path: '/api/download'
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiConvertRoute: ApiConvertRoute,
   ApiDetectRoute: ApiDetectRoute,
   ApiDownloadRoute: ApiDownloadRoute,
+  ApiHealthRoute: ApiHealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

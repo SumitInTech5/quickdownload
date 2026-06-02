@@ -67,14 +67,16 @@ export function validatePublicUrl(raw: string): URL {
 
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  upstreamStatus?: number;
+  constructor(status: number, message: string, upstreamStatus?: number) {
     super(message);
     this.status = status;
+    this.upstreamStatus = upstreamStatus;
   }
 }
 
-export function httpError(status: number, message: string) {
-  return new HttpError(status, message);
+export function httpError(status: number, message: string, upstreamStatus?: number) {
+  return new HttpError(status, message, upstreamStatus);
 }
 
 export async function hashUrl(raw: string): Promise<string> {
@@ -129,11 +131,17 @@ export const RAPIDAPI_HOST = "all-media-downloader1.p.rapidapi.com";
 
 export async function callRapidApi<T = unknown>(
   path: string,
-  init: { method?: "GET" | "POST"; query?: Record<string, string>; body?: unknown } = {},
+  init: {
+    method?: "GET" | "POST";
+    query?: Record<string, string>;
+    body?: unknown;
+    host?: string;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) throw httpError(503, "Downloader backend is not configured (missing RAPIDAPI_KEY)");
-  const host = process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
+  const host = init.host || process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
 
   const url = new URL(path, `https://${host}`);
   if (init.query) {
@@ -141,7 +149,7 @@ export async function callRapidApi<T = unknown>(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), init.timeoutMs ?? 15000);
   try {
     const res = await fetch(url.toString(), {
       method: init.method ?? "GET",
@@ -157,7 +165,7 @@ export async function callRapidApi<T = unknown>(
     if (!res.ok) {
       const snippet = (await res.text().catch(() => "")).slice(0, 200);
       const status = res.status === 429 ? 429 : 502;
-      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`);
+      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`, res.status);
     }
     return (await res.json()) as T;
   } catch (err) {

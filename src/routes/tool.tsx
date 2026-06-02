@@ -2,7 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Download, Shuffle, Loader2, Link2, Trash2, Plus, Check, FileAudio, FileVideo } from "lucide-react";
+import {
+  Download,
+  Shuffle,
+  Loader2,
+  Link2,
+  Trash2,
+  Plus,
+  Check,
+  FileAudio,
+  FileVideo,
+  AlertTriangle,
+  RotateCw,
+} from "lucide-react";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, type DetectResponse, type MediaStream } from "@/lib/api";
+import { api, ApiError, type DetectResponse, type HealthResponse, type MediaStream, type RetryHooks } from "@/lib/api";
 
 export const Route = createFileRoute("/tool")({
   head: () => ({
@@ -44,6 +57,68 @@ interface QueueItem {
   downloadUrl?: string;
 }
 
+// ---------- shared progress state ----------
+
+type Phase =
+  | { kind: "idle" }
+  | { kind: "working"; label: string; attempt: number; total: number }
+  | { kind: "retrying"; label: string; attempt: number; total: number; nextInMs: number }
+  | { kind: "error"; message: string; retriable: boolean };
+
+function useJobPhase() {
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const isBusy = phase.kind === "working" || phase.kind === "retrying";
+  return { phase, setPhase, isBusy };
+}
+
+function makeHooks(setPhase: (p: Phase) => void, label: string): RetryHooks {
+  return {
+    onAttempt: (attempt, total) => setPhase({ kind: "working", label, attempt, total }),
+    onRetry: (attempt, total, nextInMs, err) => {
+      setPhase({ kind: "retrying", label, attempt, total, nextInMs });
+      toast.message(`Retrying ${label.toLowerCase()}`, {
+        description: `Attempt ${attempt} of ${total} failed (${err.status || "network"}). Retrying in ${Math.round(nextInMs / 1000)}s…`,
+      });
+    },
+  };
+}
+
+function ProgressStrip({ phase }: { phase: Phase }) {
+  if (phase.kind === "idle") return null;
+  if (phase.kind === "error") {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="size-4" />
+        <AlertTitle>Something went wrong</AlertTitle>
+        <AlertDescription>
+          {phase.message}
+          {!phase.retriable && (
+            <span className="mt-1 block text-xs opacity-80">
+              Try a different URL or make sure the link is public.
+            </span>
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  const isRetry = phase.kind === "retrying";
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+      <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+      <div className="min-w-0 flex-1">
+        <div className="font-medium">{phase.label}…</div>
+        <div className="text-xs text-muted-foreground">
+          {isRetry
+            ? `Attempt ${phase.attempt} of ${phase.total} · retrying in ${Math.max(1, Math.round(phase.nextInMs / 1000))}s`
+            : phase.total > 1
+              ? `Attempt ${phase.attempt} of ${phase.total}`
+              : "Working…"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function triggerBrowserDownload(url: string) {
   // Direct upstream link — bytes never transit our server.
   const a = document.createElement("a");
@@ -51,6 +126,45 @@ function triggerBrowserDownload(url: string) {
   a.rel = "noopener";
   a.target = "_blank";
   a.click();
+}
+
+// ---------- HEALTH BANNER ----------
+
+function HealthBanner() {
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .health()
+      .then((h) => { if (!cancelled) setHealth(h); })
+      .catch(() => { /* silent */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!health || dismissed) return null;
+  if (health.status === "ok") return null;
+
+  const isDown = health.status === "down";
+  return (
+    <Alert variant={isDown ? "destructive" : "default"} className="mb-6">
+      <AlertTriangle className="size-4" />
+      <AlertTitle>
+        {isDown ? "Downloader backend is unavailable" : "Running on fallback provider"}
+      </AlertTitle>
+      <AlertDescription className="flex items-center justify-between gap-3">
+        <span>
+          {isDown
+            ? "We can't reach any downloader provider right now. Please try again in a few minutes."
+            : "The primary provider is offline; we're using a fallback. Some sources may be slower or unsupported."}
+        </span>
+        <Button variant="ghost" size="sm" onClick={() => setDismissed(true)}>
+          Dismiss
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 function ToolPage() {
@@ -62,6 +176,7 @@ function ToolPage() {
         description="Paste a public page URL. We'll detect every available stream, then you choose what to download or convert."
       />
       <div className="container mx-auto px-4 py-10 md:py-14">
+        <HealthBanner />
         <Tabs defaultValue="single" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="single">Detect</TabsTrigger>
@@ -86,29 +201,36 @@ function ToolPage() {
 // ---------- DETECT ----------
 function DetectPanel() {
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DetectResponse | null>(null);
   const [picked, setPicked] = useState<MediaStream | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { phase, setPhase, isBusy } = useJobPhase();
+  const downloadPhase = useJobPhase();
 
-  async function onDetect(e: React.FormEvent) {
-    e.preventDefault();
+  async function runDetect() {
     const parsed = urlSchema.safeParse(url);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Invalid URL");
       return;
     }
-    setLoading(true);
     setData(null);
     setPicked(null);
     try {
-      const res = await api.detect(parsed.data);
+      const res = await api.detect(parsed.data, makeHooks(setPhase, "Reading source"));
       setData(res);
+      setPhase({ kind: "idle" });
+      if (res.streams.length === 0) {
+        toast.message("No downloadable streams found for this URL.");
+      }
     } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setLoading(false);
+      const e = err as ApiError;
+      setPhase({ kind: "error", message: e.message, retriable: e.retriable });
     }
+  }
+
+  function onDetect(e: React.FormEvent) {
+    e.preventDefault();
+    void runDetect();
   }
 
   return (
@@ -131,11 +253,21 @@ function DetectPanel() {
               required
             />
           </div>
-          <Button type="submit" disabled={loading} className="sm:w-40">
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-            {loading ? "Detecting…" : "Detect"}
+          <Button type="submit" disabled={isBusy} className="sm:w-40">
+            {isBusy ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+            {isBusy ? "Detecting…" : "Detect"}
           </Button>
         </form>
+
+        <ProgressStrip phase={phase} />
+        {phase.kind === "error" && phase.retriable && (
+          <Button variant="outline" size="sm" onClick={runDetect}>
+            <RotateCw className="size-4" />
+            Try again
+          </Button>
+        )}
+
+        <ProgressStrip phase={downloadPhase.phase} />
 
         {data && (
           <div className="space-y-4">
@@ -186,13 +318,19 @@ function DetectPanel() {
           actionLabel="Start download"
           onConfirm={async () => {
             if (!picked || !url) return;
+            setConfirmOpen(false);
             try {
-              const { download_url } = await api.download(url, picked.id);
-              setConfirmOpen(false);
+              const { download_url } = await api.download(
+                url,
+                picked.id,
+                makeHooks(downloadPhase.setPhase, "Fetching link"),
+              );
+              downloadPhase.setPhase({ kind: "idle" });
               triggerBrowserDownload(download_url);
               toast.success("Download started in a new tab");
             } catch (err) {
-              toast.error((err as Error).message);
+              const e = err as ApiError;
+              downloadPhase.setPhase({ kind: "error", message: e.message, retriable: e.retriable });
             }
           }}
         />
@@ -208,6 +346,7 @@ function ConvertPanel() {
   const [bitrate, setBitrate] = useState("192k");
   const [sampleRate, setSampleRate] = useState("44100");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { phase, setPhase } = useJobPhase();
 
   return (
     <Card>
@@ -269,18 +408,28 @@ function ConvertPanel() {
           Convert
         </Button>
 
+        <ProgressStrip phase={phase} />
+
         <CopyrightDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           actionLabel="Start conversion"
           onConfirm={async () => {
+            setConfirmOpen(false);
             try {
-              const { download_url } = await api.convert(source, target, bitrate, sampleRate);
-              setConfirmOpen(false);
+              const { download_url } = await api.convert(
+                source,
+                target,
+                bitrate,
+                sampleRate,
+                makeHooks(setPhase, `Converting to ${target.toUpperCase()}`),
+              );
+              setPhase({ kind: "idle" });
               triggerBrowserDownload(download_url);
               toast.success("Conversion ready — download started");
             } catch (err) {
-              toast.error((err as Error).message);
+              const e = err as ApiError;
+              setPhase({ kind: "error", message: e.message, retriable: e.retriable });
             }
           }}
         />
@@ -315,12 +464,13 @@ function BatchPanel() {
       try {
         const detected = await api.detect(item.url);
         const best = detected.streams[0];
-        if (!best) throw new Error("No streams detected");
+        if (!best) throw new ApiError(404, "No streams detected for this URL", false);
         const { download_url } = await api.download(item.url, best.id);
         triggerBrowserDownload(download_url);
         setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "done", downloadUrl: download_url } : x));
       } catch (err) {
-        setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "error", error: (err as Error).message } : x));
+        const e = err as ApiError;
+        setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "error", error: e.message } : x));
       }
     }
   }
