@@ -51,8 +51,8 @@ function b64urlEncode(s: string) {
 }
 
 function classify(f: UpstreamFormat): "video" | "audio" {
-  if (f.has_video === true) return "video";
-  if (f.has_audio === true && f.has_video !== true) return "audio";
+  if (f.has_video) return "video";
+  if (f.has_audio && !f.has_video) return "audio";
   const v = (f.vcodec ?? "").toLowerCase();
   const a = (f.acodec ?? "").toLowerCase();
   if (v && v !== "none") return "video";
