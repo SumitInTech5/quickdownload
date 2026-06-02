@@ -11,7 +11,7 @@ const PRIVATE_HOSTNAMES = new Set([
 ]);
 
 export const urlInput = z.string().trim().min(1).max(2048).url();
-export const formatIdInput = z.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9._-]+$/);
+export const formatIdInput = z.string().trim().min(1).max(4096).regex(/^[a-zA-Z0-9._\-=]+$/);
 export const targetFormatInput = z.enum(["mp3", "aac", "wav", "mp4", "m4a", "ogg"]);
 export const bitrateInput = z.enum(["64k", "128k", "192k", "256k", "320k"]).optional();
 export const sampleRateInput = z.enum(["22050", "44100", "48000"]).optional();
