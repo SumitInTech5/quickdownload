@@ -159,7 +159,7 @@ export async function callRapidApi<T = unknown>(
     if (!res.ok) {
       const snippet = (await res.text().catch(() => "")).slice(0, 200);
       const status = res.status === 429 ? 429 : 502;
-      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`);
+      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`, res.status);
     }
     return (await res.json()) as T;
   } catch (err) {
