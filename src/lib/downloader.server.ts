@@ -131,11 +131,17 @@ export const RAPIDAPI_HOST = "all-media-downloader1.p.rapidapi.com";
 
 export async function callRapidApi<T = unknown>(
   path: string,
-  init: { method?: "GET" | "POST"; query?: Record<string, string>; body?: unknown } = {},
+  init: {
+    method?: "GET" | "POST";
+    query?: Record<string, string>;
+    body?: unknown;
+    host?: string;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) throw httpError(503, "Downloader backend is not configured (missing RAPIDAPI_KEY)");
-  const host = process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
+  const host = init.host || process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
 
   const url = new URL(path, `https://${host}`);
   if (init.query) {
@@ -143,7 +149,7 @@ export async function callRapidApi<T = unknown>(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), init.timeoutMs ?? 15000);
   try {
     const res = await fetch(url.toString(), {
       method: init.method ?? "GET",
