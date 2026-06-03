@@ -104,17 +104,16 @@ function mapCobaltError(code: string | undefined, fallback: string): HttpError {
   return httpError(502, fallback);
 }
 
-async function cobaltCall(payload: CobaltPayload): Promise<CobaltResponse> {
-  const base = cobaltBase();
+async function cobaltCallOne(base: string, payload: CobaltPayload): Promise<CobaltResponse> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const res = await fetch(base + "/", {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "User-Agent": "lovable-downloader/1.0",
+        "User-Agent": "lovable-downloader/1.0 (+https://lovable.dev)",
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -122,22 +121,47 @@ async function cobaltCall(payload: CobaltPayload): Promise<CobaltResponse> {
     });
     const text = await res.text();
     let json: CobaltResponse | null = null;
-    try { json = text ? JSON.parse(text) as CobaltResponse : null; } catch { /* */ }
-    if (!res.ok) {
-      const snippet = text.slice(0, 200);
+    try { json = text ? JSON.parse(text) as CobaltResponse : null; } catch { /* not JSON (e.g. Cloudflare interstitial) */ }
+    if (!res.ok || !json) {
+      const snippet = (text || "").slice(0, 160);
       if (res.status === 429) throw httpError(429, "The downloader is rate-limited. Please try again shortly.");
-      throw new HttpError(502, `Downloader backend error (${res.status})${snippet ? `: ${snippet}` : ""}`, res.status);
+      throw new HttpError(502, `Backend ${new URL(base).host} error (${res.status})${snippet ? `: ${snippet}` : ""}`, res.status);
     }
-    if (!json) throw httpError(502, "Downloader backend returned an invalid response");
     return json;
   } catch (err) {
     if (err instanceof HttpError) throw err;
-    if ((err as Error).name === "AbortError") throw httpError(504, "Downloader backend timed out");
-    throw httpError(502, "Couldn't reach the downloader backend");
+    if ((err as Error).name === "AbortError") throw httpError(504, `Backend ${new URL(base).host} timed out`);
+    throw httpError(502, `Couldn't reach ${new URL(base).host}`);
   } finally {
     clearTimeout(timeout);
   }
 }
+
+async function cobaltCall(payload: CobaltPayload): Promise<CobaltResponse> {
+  const bases = cobaltBases();
+  let lastErr: unknown;
+  for (const base of bases) {
+    try {
+      const r = await cobaltCallOne(base, payload);
+      // A Cobalt "error" status with an auth/turnstile code means this mirror requires auth — try the next.
+      if (r.status === "error") {
+        const code = r.error?.code ?? "";
+        if (code.includes("auth") || code.includes("turnstile") || code.includes("captcha")) {
+          lastErr = httpError(502, `Backend ${new URL(base).host} requires auth`);
+          continue;
+        }
+      }
+      return r;
+    } catch (err) {
+      lastErr = err;
+      // Try the next backend on connectivity / 5xx / non-JSON failures.
+      continue;
+    }
+  }
+  if (lastErr instanceof HttpError) throw lastErr;
+  throw httpError(502, "All downloader backends are unreachable. Set COBALT_API_URL to a working Cobalt instance.");
+}
+
 
 export interface CobaltLink {
   download_url: string;
