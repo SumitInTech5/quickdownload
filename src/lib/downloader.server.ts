@@ -127,55 +127,6 @@ export function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-export const RAPIDAPI_HOST = "all-media-downloader1.p.rapidapi.com";
-
-export async function callRapidApi<T = unknown>(
-  path: string,
-  init: {
-    method?: "GET" | "POST";
-    query?: Record<string, string>;
-    body?: unknown;
-    host?: string;
-    timeoutMs?: number;
-  } = {},
-): Promise<T> {
-  const key = process.env.RAPIDAPI_KEY;
-  if (!key) throw httpError(503, "Downloader backend is not configured (missing RAPIDAPI_KEY)");
-  const host = init.host || process.env.RAPIDAPI_HOST || RAPIDAPI_HOST;
-
-  const url = new URL(path, `https://${host}`);
-  if (init.query) {
-    for (const [k, v] of Object.entries(init.query)) url.searchParams.set(k, v);
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), init.timeoutMs ?? 15000);
-  try {
-    const res = await fetch(url.toString(), {
-      method: init.method ?? "GET",
-      headers: {
-        "X-RapidAPI-Key": key,
-        "X-RapidAPI-Host": host,
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-      },
-      body: init.body ? JSON.stringify(init.body) : undefined,
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      const snippet = (await res.text().catch(() => "")).slice(0, 200);
-      const status = res.status === 429 ? 429 : 502;
-      throw new HttpError(status, `Upstream error (${res.status})${snippet ? `: ${snippet}` : ""}`, res.status);
-    }
-    return (await res.json()) as T;
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    if ((err as Error).name === "AbortError") throw httpError(504, "Upstream timed out");
-    throw httpError(502, "Upstream request failed");
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 export async function handle(
   route: string,
