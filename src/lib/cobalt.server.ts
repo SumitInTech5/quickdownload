@@ -4,12 +4,21 @@
 
 import { HttpError, httpError } from "./downloader.server";
 
-const DEFAULT_COBALT_BASE = "https://dwnld.nichi.co";
+// Fallback list of community-run, no-auth public Cobalt instances.
+// User can override (single URL or comma-separated list) via COBALT_API_URL.
+const DEFAULT_COBALT_BASES = [
+  "https://dwnld.nichi.co",
+  "https://cobalt-api.kwiatekmiki.com",
+  "https://co.eepy.today",
+  "https://capi.oak.li",
+];
 
-function cobaltBase(): string {
-  const raw = (process.env.COBALT_API_URL || DEFAULT_COBALT_BASE).trim();
-  return raw.replace(/\/+$/, "");
+function cobaltBases(): string[] {
+  const raw = (process.env.COBALT_API_URL || "").trim();
+  if (raw) return raw.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
+  return DEFAULT_COBALT_BASES;
 }
+
 
 export type PresetId =
   | "video-best"
