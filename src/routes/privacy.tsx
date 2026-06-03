@@ -5,9 +5,13 @@ export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
       { title: "Privacy Policy — All Video Downloader" },
-      { name: "description", content: "How All Video Downloader collects, uses, and retains data." },
-      { property: "og:title", content: "Privacy Policy" },
-      { property: "og:description", content: "How All Video Downloader collects, uses, and retains data." },
+      { name: "description", content: "How All Video Downloader collects, uses, and retains data. Minimal logs, no media storage, no third-party ad trackers." },
+      { property: "og:title", content: "Privacy Policy — All Video Downloader" },
+      { property: "og:description", content: "Minimal data collection, no media storage, no ad trackers. Read the full privacy policy." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/privacy" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/privacy" },
     ],
   }),
   component: Privacy,

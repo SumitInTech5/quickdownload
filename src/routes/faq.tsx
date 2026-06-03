@@ -12,8 +12,12 @@ export const Route = createFileRoute("/faq")({
     meta: [
       { title: "FAQ — All Video Downloader" },
       { name: "description", content: "Answers about supported sites, quality, conversion, privacy and copyright." },
-      { property: "og:title", content: "Frequently asked questions" },
-      { property: "og:description", content: "Answers about supported sites, quality, conversion, privacy and copyright." },
+      { property: "og:title", content: "Frequently asked questions — All Video Downloader" },
+      { property: "og:description", content: "Short, honest answers about supported sites, quality, conversion, privacy and copyright." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/faq" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/faq" },
     ],
     scripts: [
       {

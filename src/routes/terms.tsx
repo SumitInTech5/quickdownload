@@ -5,9 +5,13 @@ export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
       { title: "Terms of Service — All Video Downloader" },
-      { name: "description", content: "The terms that govern your use of All Video Downloader." },
-      { property: "og:title", content: "Terms of Service" },
-      { property: "og:description", content: "The terms that govern your use of All Video Downloader." },
+      { name: "description", content: "The terms that govern your use of All Video Downloader, including acceptable use, copyright, liability, and rate limits." },
+      { property: "og:title", content: "Terms of Service — All Video Downloader" },
+      { property: "og:description", content: "Acceptable use, copyright compliance, liability and rate limits — the terms governing your use of the service." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/terms" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/terms" },
     ],
   }),
   component: Terms,

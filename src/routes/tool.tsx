@@ -40,8 +40,12 @@ export const Route = createFileRoute("/tool")({
     meta: [
       { title: "Convert & Download — All Video Downloader" },
       { name: "description", content: "Paste a URL, detect available streams, and download or convert in your preferred format." },
-      { property: "og:title", content: "Convert & Download" },
+      { property: "og:title", content: "Convert & Download — All Video Downloader" },
       { property: "og:description", content: "Detect media, pick quality, download or convert MP4↔MP3 with bitrate control." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/tool" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/tool" },
     ],
   }),
   component: ToolPage,
@@ -284,7 +288,7 @@ function DetectPanel() {
             </div>
 
             <div>
-              <h3 className="mb-3 font-semibold">Available streams</h3>
+              <h2 className="mb-3 font-semibold">Available streams</h2>
               <div className="grid gap-2">
                 {data.streams.map((s) => (
                   <button

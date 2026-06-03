@@ -78,15 +78,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "All Video Downloader — Download & convert video and audio" },
-      {
-        name: "description",
-        content:
-          "Paste any public URL to download original-quality video or extract audio. Convert MP4 to MP3, batch queue, in-browser preview — built with copyright compliance in mind.",
-      },
       { name: "author", content: "All Video Downloader" },
-      { property: "og:title", content: "All Video Downloader" },
-      { property: "og:description", content: "Download and convert media from public web pages, responsibly." },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "All Video Downloader" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -98,6 +90,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "All Video Downloader",
+          url: "https://quickdownload.lovable.app",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "All Video Downloader",
+          url: "https://quickdownload.lovable.app",
+          logo: "https://quickdownload.lovable.app/favicon.ico",
+        }),
       },
     ],
   }),
