@@ -82,7 +82,7 @@ export function AiHelpChat() {
             disabled={isLoading}
             className="flex-1"
           />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+          <Button type="submit" size="icon" aria-label="Send message" disabled={isLoading || !input.trim()}>
             <Send className="h-4 w-4" />
           </Button>
         </form>

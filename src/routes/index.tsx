@@ -14,8 +14,12 @@ export const Route = createFileRoute("/")({
         content:
           "Paste any public URL to download original-quality video or extract audio. Batch downloads, MP4↔MP3 conversion, in-browser preview.",
       },
-      { property: "og:title", content: "All Video Downloader" },
-      { property: "og:description", content: "Download and convert media from public web pages, responsibly." },
+      { property: "og:title", content: "All Video Downloader — Download and convert media" },
+      { property: "og:description", content: "Paste a public URL to download original-quality video or extract audio. Batch queue and MP4↔MP3 conversion included." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/" },
     ],
   }),
   component: Index,
