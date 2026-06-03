@@ -7,7 +7,7 @@ import {
   urlInput,
   validatePublicUrl,
 } from "@/lib/downloader.server";
-import { tryProviders } from "@/lib/providers.server";
+import { PRESETS } from "@/lib/cobalt.server";
 
 const schema = z.object({
   url: urlInput,
@@ -22,12 +22,24 @@ export const Route = createFileRoute("/api/detect")({
         handle("detect", request, async (body) => {
           const input = schema.parse(body);
           const u = validatePublicUrl(input.url);
-          const data = await tryProviders(
-            (p) => p.detect(u.toString()),
-            "detect",
-            u.toString(),
-          );
-          return { url: u.toString(), data };
+          // Cobalt doesn't expose a metadata index — we present a stable set of
+          // quality/format presets that work across every supported source.
+          const streams = PRESETS.map((p) => ({
+            id: p.id,
+            kind: p.kind,
+            container: p.container,
+            resolution: p.resolution,
+            bitrate: p.bitrate,
+          }));
+          let title = u.hostname.replace(/^www\./, "");
+          try {
+            const seg = u.pathname.split("/").filter(Boolean).pop();
+            if (seg) title = `${title} — ${decodeURIComponent(seg).slice(0, 80)}`;
+          } catch { /* */ }
+          return {
+            url: u.toString(),
+            data: { title, streams },
+          };
         }),
     },
   },

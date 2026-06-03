@@ -5,18 +5,16 @@ import {
   copyrightFlag,
   corsResponse,
   handle,
-  sampleRateInput,
   targetFormatInput,
   urlInput,
   validatePublicUrl,
 } from "@/lib/downloader.server";
-import { tryProviders } from "@/lib/providers.server";
+import { cobaltConvertAudio, cobaltResolve } from "@/lib/cobalt.server";
 
 const schema = z.object({
   url: urlInput,
   target_format: targetFormatInput,
   bitrate: bitrateInput,
-  sample_rate: sampleRateInput,
   copyright_confirmed: copyrightFlag,
 });
 
@@ -28,12 +26,17 @@ export const Route = createFileRoute("/api/convert")({
         handle("convert", request, async (body) => {
           const input = schema.parse(body);
           const u = validatePublicUrl(input.url);
-          const data = await tryProviders(
-            (p) => p.convert(u.toString(), input.target_format, input.bitrate, input.sample_rate),
-            "convert",
-            u.toString(),
-          );
-          return { url: u.toString(), data };
+          const fmt = input.target_format;
+          let link;
+          if (fmt === "mp4") {
+            link = await cobaltResolve(u.toString(), "video-best");
+          } else {
+            link = await cobaltConvertAudio(u.toString(), fmt as "mp3" | "aac" | "wav" | "ogg" | "m4a", input.bitrate);
+          }
+          return {
+            url: u.toString(),
+            data: { download_url: link.download_url, expires_at: null as string | null },
+          };
         }),
     },
   },
