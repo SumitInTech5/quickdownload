@@ -9,8 +9,12 @@ export const Route = createFileRoute("/how-it-works")({
     meta: [
       { title: "How it works — All Video Downloader" },
       { name: "description", content: "Three simple steps: paste a URL, pick a stream, download or convert with full control and copyright compliance." },
-      { property: "og:title", content: "How it works" },
-      { property: "og:description", content: "Three steps from URL to file." },
+      { property: "og:title", content: "How it works — All Video Downloader" },
+      { property: "og:description", content: "Three steps from URL to file: paste, pick a stream, download or convert." },
+      { property: "og:url", content: "https://quickdownload.lovable.app/how-it-works" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://quickdownload.lovable.app/how-it-works" },
     ],
   }),
   component: HowItWorks,

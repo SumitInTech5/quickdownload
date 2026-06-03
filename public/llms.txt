@@ -1,0 +1,13 @@
+# All Video Downloader
+
+> Download original-quality video or extract audio from any public URL. Convert between MP4 and MP3 with bitrate control, batch downloads, and in-browser preview — built with copyright compliance in mind.
+
+## Pages
+
+- [Home](/): Overview of features, supported formats, and the copyright-first approach.
+- [Convert & Download](/tool): Paste a URL, detect available streams, and download or convert media.
+- [How it works](/how-it-works): The three-step process from URL to file, plus what happens behind the scenes.
+- [FAQ](/faq): Answers about supported sites, quality, conversion, privacy, and copyright.
+- [Help & Support](/help): Chat with the AI assistant for troubleshooting and questions.
+- [Privacy Policy](/privacy): What data is collected, how it's used, and retention practices.
+- [Terms of Service](/terms): Acceptable use, copyright compliance, and rate limits.
