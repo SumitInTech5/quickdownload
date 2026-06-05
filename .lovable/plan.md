@@ -1,69 +1,102 @@
 ## Goal
 
-Get the tool reliably detecting + downloading audio/video again by replacing the broken RapidAPI backend (returning 403 "not subscribed") with the open-source **Cobalt API**, removing the 3-attempt retry loop and the health banner, and cleaning up dead code so the site stops throwing errors.
+Replace the broken Cobalt-only backend with a **multi-tier free downloader chain**: Piped (YouTube, zero setup) + your hosted **yt-dlp microservice** (everything else, ~1800 sites) + optional Cobalt as a last resort. Ship a one-click-deploy yt-dlp service folder so you can host it free on Render.
 
-## Why the current build fails
+## Why
 
-Network logs show every upstream call returning `403 "You are not subscribed to this API."` from both `ytjar` and `dataFanatic`. The `RAPIDAPI_KEY` secret is set but the account has no subscription to either host, so retries and fallback cannot help. We need a different backend.
+- Cloudflare Workers (our backend) can't run yt-dlp itself — no Python, no binaries, no subprocesses.
+- Piped covers YouTube with no infra at all.
+- A tiny yt-dlp HTTP wrapper deployed on Render free tier covers every non-YouTube source.
+- Three independent layers = "no errors" practical guarantee.
 
-## Backend choice: Cobalt API (no-auth public instance)
+## Architecture
 
-Cobalt is an open-source media-extraction API (YouTube, TikTok, Instagram, X, Reddit, SoundCloud, Twitch, etc.). Call shape:
-
+```text
+                ┌────────────────────────────────────────────────┐
+  /api/detect ──┤  is YouTube?  ── yes ──► Piped public mirrors ─┼──► streams
+  /api/download│                                                │
+  /api/convert │  no, or Piped failed ──► your yt-dlp service ──┼──► streams / link
+                │                                                │
+                │  yt-dlp failed (or not configured) ──► Cobalt  │  (only if COBALT_API_URL set)
+                └────────────────────────────────────────────────┘
 ```
-POST {COBALT_BASE}/
-Headers: Accept: application/json, Content-Type: application/json
-Body: { url, downloadMode: "auto"|"audio"|"mute", audioFormat: "mp3"|"m4a"|..., videoQuality: "1080"|"720"|... }
-Response: { status: "tunnel"|"redirect"|"picker"|"error", url?, filename?, picker?[] }
-```
 
-`COBALT_BASE` will be a configurable env var (`COBALT_API_URL`) defaulting to a known no-auth public instance. User can swap it later if the chosen instance rate-limits us — no code change required.
+## Part 1 — yt-dlp microservice (new folder: `yt-dlp-service/`)
 
-> Note: Cobalt does NOT return a metadata index upfront. So "Detect" becomes a UX pattern where we present **a fixed set of quality/format presets** for the pasted URL; "Download" makes the actual Cobalt call for the chosen preset. This is more robust than enumerating per-source format IDs and works uniformly for every supported source.
+A separate deployable folder, NOT bundled into the main app. Contains:
 
-## Changes
+- `Dockerfile` — `python:3.12-slim` base, installs `yt-dlp` + `ffmpeg` + `fastapi` + `uvicorn`.
+- `app.py` — FastAPI with 3 endpoints:
+  - `GET /health` → `{ok:true}`
+  - `POST /info` body `{url}` → `{title, thumbnail, formats:[{format_id, ext, resolution, abr, vbr, filesize, vcodec, acodec, url}]}` (subset of `yt-dlp -j` output)
+  - `POST /resolve` body `{url, format_id?}` → `{download_url, filename}` (direct upstream URL from the format)
+  - Optional API-key check via `X-API-Key` header matching `API_KEY` env var (so you can lock down the service)
+- `render.yaml` — Render blueprint (free Docker web service)
+- `README.md` — 4-step deploy guide (fork repo → connect Render → set API_KEY env var → copy URL)
 
-### 1. New backend module: `src/lib/cobalt.server.ts`
-- `cobaltCall(payload)` — POST to `COBALT_API_URL`, 20s timeout, maps non-2xx and Cobalt `status:"error"` into our `HttpError` with friendly messages.
-- `cobaltResolve(url, preset)` — translates a preset id (e.g. `video-best`, `video-720`, `audio-mp3`, `audio-m4a`) into Cobalt payload, returns `{ download_url, filename }`.
-- Handles `tunnel` and `redirect` statuses (both yield a direct URL). `picker` → take first item. `error` → throw friendly message based on Cobalt error code (e.g. `error.api.content.video.unavailable` → "This video is private or unavailable").
+This is plain code in the repo for you to push to GitHub and point Render at. We don't deploy it ourselves.
 
-### 2. Rewrite API routes
-- `src/routes/api/detect.ts` — no longer calls upstream. Returns a static list of stream presets derived from URL (always: Video best, Video 1080p, Video 720p, Audio MP3, Audio M4A). No upstream call → instant, never errors except on invalid URL.
-- `src/routes/api/download.ts` — accepts `{ url, format_id }` where `format_id` is one of the preset ids, calls `cobaltResolve`, returns `{ download_url }`.
-- `src/routes/api/convert.ts` — routes audio conversion presets through Cobalt's `downloadMode:"audio"` + `audioFormat` (mp3/aac→m4a/wav/ogg). Removes bitrate/sampleRate fields from upstream call (Cobalt doesn't expose them); UI keeps the selects but they become informational.
-- `src/routes/api/health.ts` — **deleted**.
+## Part 2 — Backend changes (`src/lib/`)
 
-### 3. Delete dead code
-- `src/lib/providers.server.ts` — deleted.
-- `src/lib/downloader.server.ts` — keep validation/CORS/`handle()`/`HttpError` helpers; remove `callRapidApi` and `RAPIDAPI_HOST`.
+### New: `src/lib/piped.server.ts`
+- Detects YouTube URLs (`youtube.com`, `youtu.be`, `m.youtube.com`, `music.youtube.com`).
+- Extracts video ID from any of the formats above.
+- Calls `GET {pipedBase}/streams/{videoId}` against a rotating list of public Piped mirrors (`pipedapi.kavin.rocks`, `piped-api.privacy.com.de`, `pipedapi.r4fo.com`, `api.piped.yt`, etc.). User can override with `PIPED_API_URL` (comma-separated list).
+- Normalizes response into our common `{title, thumbnail, streams[]}` shape.
+- Returns a direct-URL `download_url` from the chosen stream (no preset translation needed — Piped exposes real format ids).
 
-### 4. Remove retry logic — `src/lib/api.ts`
-- Delete `withRetry`, `RetryOptions`, `RetryHooks` (single-attempt only).
-- Keep `ApiError` + `FRIENDLY_BY_STATUS` (improved messages for Cobalt-specific errors).
-- `api.detect/download/convert` become plain single-shot calls.
-- Delete `api.health`.
+### New: `src/lib/ytdlp.server.ts`
+- Reads `YTDLP_SERVICE_URL` and optional `YTDLP_SERVICE_API_KEY` from env.
+- `ytdlpInfo(url)` → POST `/info`, normalize formats into our shape.
+- `ytdlpResolve(url, format_id)` → POST `/resolve`, returns `{download_url}`.
+- Skips silently (returns null) if `YTDLP_SERVICE_URL` is not set, so the chain falls through.
 
-### 5. Simplify `src/routes/tool.tsx`
-- Remove `HealthBanner` component and its render.
-- Remove `RetryHooks`, `makeHooks`, `useJobPhase` retry/attempt state — collapse to simple `loading | error | done` states.
-- `ProgressStrip` simplifies to a spinner + label (no attempt counter).
-- Remove "Try again" button (errors just show inline; user retries by clicking Detect/Download again).
-- BatchPanel loses retry awareness; single attempt per item.
+### Replace: `src/lib/cobalt.server.ts`
+Keep as last-resort fallback (existing code already handles `COBALT_API_URL`). No changes to its internals.
 
-### 6. Secret
-- Add `COBALT_API_URL` secret (optional — we ship a default public instance URL as fallback in code, but env override lets user point to their own/another mirror if the default ever degrades).
-- We can also delete `RAPIDAPI_KEY` afterwards (you do that in Project Settings → Secrets; no code dependency remains).
+### New: `src/lib/extractors.server.ts` (orchestrator)
+- `detectAny(url)` → tries Piped (YouTube only) → yt-dlp → Cobalt presets, returns the first success.
+- `resolveAny(url, format_id)` → routes based on `format_id` prefix (`piped:<id>`, `ytdlp:<id>`, `cobalt:<preset>`).
+- Format IDs get prefixed in `detectAny` so `/api/download` knows which backend to call.
+- Collects per-provider errors and returns the most informative one if all fail.
 
-## Out of scope
-- Self-hosting a Cobalt instance. We'll use a public no-auth mirror; if it rate-limits us heavily, the fix is to set `COBALT_API_URL` to a different mirror (or your own) — no code change.
-- Per-format bitrate/sample-rate control on video (Cobalt picks best for the chosen quality).
+## Part 3 — API routes (`src/routes/api/`)
 
-## Risks
-- Public Cobalt mirrors can rate-limit or go offline without notice. If that happens, swap `COBALT_API_URL`. Symptoms will appear as clean "Source temporarily unavailable" errors, not crashes.
-- Some sources (e.g. age-restricted YouTube, private posts) are unsupported by any backend; we'll surface Cobalt's specific error message instead of a generic failure.
+- `detect.ts` — calls `detectAny`. Returns real per-source streams (Piped/yt-dlp) when available, falls back to Cobalt's static presets only when both upstreams fail or service is unconfigured.
+- `download.ts` — accepts any prefixed format_id; routes via `resolveAny`.
+- `convert.ts` — for audio targets (mp3/m4a/wav/ogg) prefers yt-dlp (which extracts audio cleanly via ffmpeg) → Cobalt. For mp4 → resolve best video stream. Drops bitrate from upstream call when not supported.
+
+## Part 4 — Secrets
+
+Need three secrets (only `YTDLP_SERVICE_URL` is strictly required for full coverage):
+- `YTDLP_SERVICE_URL` — your Render service URL (e.g. `https://yt-dlp-svc.onrender.com`)
+- `YTDLP_SERVICE_API_KEY` — optional; matches the `API_KEY` env var on Render
+- `PIPED_API_URL` — optional override; defaults to a built-in rotating list
+- `COBALT_API_URL` — already exists; keep as last-resort
+
+## Part 5 — UI polish (small)
+
+`src/routes/tool.tsx`:
+- When detect returns real streams (from Piped/yt-dlp), they'll show real titles, thumbnails, resolutions, file sizes — UI already supports all these fields, no changes needed.
+- Add a friendly "No backend configured" notice on the tool page only when BOTH `YTDLP_SERVICE_URL` and `COBALT_API_URL` are missing and the URL isn't YouTube — via a tiny server function that reports configured-providers status (no health pings).
+
+## What you do after I ship the code
+
+1. Create a new GitHub repo, push the contents of `yt-dlp-service/`.
+2. Render → New → Blueprint → point at that repo. Pick free tier. Wait ~3 min.
+3. Render gives you `https://your-service.onrender.com`.
+4. (Optional) set an `API_KEY` env var on Render to a random string.
+5. In Lovable Project Settings → Secrets, set `YTDLP_SERVICE_URL` and `YTDLP_SERVICE_API_KEY`.
+6. Done — YouTube works immediately via Piped (no setup), everything else via your service.
+
+## Risks / honest caveats
+
+- **Render free tier sleeps after 15 min inactivity** → first request after sleep takes ~30s to spin up. Subsequent requests are fast. We'll add a 25s timeout on first call and a clear "warming up" message in the UI if a request takes >5s.
+- Public Piped mirrors occasionally rate-limit or go down — that's why we rotate through several, and fall back to yt-dlp.
+- Some sites (DRM-protected: Netflix, Spotify premium, etc.) are unsupported by yt-dlp by design and will always error. Error messages will explicitly say "this source isn't supported".
 
 ## Files touched
-- **New**: `src/lib/cobalt.server.ts`
-- **Edit**: `src/routes/api/detect.ts`, `src/routes/api/download.ts`, `src/routes/api/convert.ts`, `src/lib/downloader.server.ts`, `src/lib/api.ts`, `src/routes/tool.tsx`
-- **Delete**: `src/lib/providers.server.ts`, `src/routes/api/health.ts`
+
+- **New**: `yt-dlp-service/Dockerfile`, `yt-dlp-service/app.py`, `yt-dlp-service/requirements.txt`, `yt-dlp-service/render.yaml`, `yt-dlp-service/README.md`, `src/lib/piped.server.ts`, `src/lib/ytdlp.server.ts`, `src/lib/extractors.server.ts`
+- **Edit**: `src/routes/api/detect.ts`, `src/routes/api/download.ts`, `src/routes/api/convert.ts`, `src/routes/tool.tsx` (minor — config-status notice)
+- **Unchanged**: `src/lib/cobalt.server.ts` (kept as last fallback)

@@ -3,17 +3,16 @@ import { z } from "zod";
 import {
   copyrightFlag,
   corsResponse,
+  formatIdInput,
   handle,
   urlInput,
   validatePublicUrl,
 } from "@/lib/downloader.server";
-import { cobaltResolve, PRESETS, type PresetId } from "@/lib/cobalt.server";
-
-const presetIds = PRESETS.map((p) => p.id) as [PresetId, ...PresetId[]];
+import { resolveAny } from "@/lib/extractors.server";
 
 const schema = z.object({
   url: urlInput,
-  format_id: z.enum(presetIds),
+  format_id: formatIdInput,
   copyright_confirmed: copyrightFlag,
 });
 
@@ -25,10 +24,16 @@ export const Route = createFileRoute("/api/download")({
         handle("download", request, async (body) => {
           const input = schema.parse(body);
           const u = validatePublicUrl(input.url);
-          const link = await cobaltResolve(u.toString(), input.format_id);
+          const link = await resolveAny(u, input.format_id);
+          // Validate the resolved URL too (don't allow ssrf via a malicious id).
+          const direct = validatePublicUrl(link.download_url);
           return {
             url: u.toString(),
-            data: { download_url: link.download_url, expires_at: null as string | null },
+            data: {
+              download_url: direct.toString(),
+              expires_at: null as string | null,
+              filename: link.filename,
+            },
           };
         }),
     },
