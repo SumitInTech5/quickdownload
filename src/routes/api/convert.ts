@@ -9,7 +9,7 @@ import {
   urlInput,
   validatePublicUrl,
 } from "@/lib/downloader.server";
-import { cobaltConvertAudio, cobaltResolve } from "@/lib/cobalt.server";
+import { convertAny } from "@/lib/extractors.server";
 
 const schema = z.object({
   url: urlInput,
@@ -26,16 +26,15 @@ export const Route = createFileRoute("/api/convert")({
         handle("convert", request, async (body) => {
           const input = schema.parse(body);
           const u = validatePublicUrl(input.url);
-          const fmt = input.target_format;
-          let link;
-          if (fmt === "mp4") {
-            link = await cobaltResolve(u.toString(), "video-best");
-          } else {
-            link = await cobaltConvertAudio(u.toString(), fmt as "mp3" | "aac" | "wav" | "ogg" | "m4a", input.bitrate);
-          }
+          const link = await convertAny(u, input.target_format, input.bitrate);
+          const direct = validatePublicUrl(link.download_url);
           return {
             url: u.toString(),
-            data: { download_url: link.download_url, expires_at: null as string | null },
+            data: {
+              download_url: direct.toString(),
+              expires_at: null as string | null,
+              filename: link.filename,
+            },
           };
         }),
     },
