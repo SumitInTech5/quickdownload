@@ -17,9 +17,6 @@ import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiDownloadRouteImport } from './routes/api/download'
-import { Route as ApiDetectRouteImport } from './routes/api/detect'
-import { Route as ApiConvertRouteImport } from './routes/api/convert'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const ToolRoute = ToolRouteImport.update({
@@ -62,21 +59,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDownloadRoute = ApiDownloadRouteImport.update({
-  id: '/api/download',
-  path: '/api/download',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDetectRoute = ApiDetectRouteImport.update({
-  id: '/api/detect',
-  path: '/api/detect',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiConvertRoute = ApiConvertRouteImport.update({
-  id: '/api/convert',
-  path: '/api/convert',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -93,9 +75,6 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
-  '/api/convert': typeof ApiConvertRoute
-  '/api/detect': typeof ApiDetectRoute
-  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -107,9 +86,6 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
-  '/api/convert': typeof ApiConvertRoute
-  '/api/detect': typeof ApiDetectRoute
-  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,9 +98,6 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
-  '/api/convert': typeof ApiConvertRoute
-  '/api/detect': typeof ApiDetectRoute
-  '/api/download': typeof ApiDownloadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,9 +111,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
-    | '/api/convert'
-    | '/api/detect'
-    | '/api/download'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -152,9 +122,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
-    | '/api/convert'
-    | '/api/detect'
-    | '/api/download'
   id:
     | '__root__'
     | '/'
@@ -166,9 +133,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
-    | '/api/convert'
-    | '/api/detect'
-    | '/api/download'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -181,9 +145,6 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ToolRoute: typeof ToolRoute
   ApiChatRoute: typeof ApiChatRoute
-  ApiConvertRoute: typeof ApiConvertRoute
-  ApiDetectRoute: typeof ApiDetectRoute
-  ApiDownloadRoute: typeof ApiDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -244,27 +205,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/download': {
-      id: '/api/download'
-      path: '/api/download'
-      fullPath: '/api/download'
-      preLoaderRoute: typeof ApiDownloadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/detect': {
-      id: '/api/detect'
-      path: '/api/detect'
-      fullPath: '/api/detect'
-      preLoaderRoute: typeof ApiDetectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/convert': {
-      id: '/api/convert'
-      path: '/api/convert'
-      fullPath: '/api/convert'
-      preLoaderRoute: typeof ApiConvertRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -285,9 +225,6 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ToolRoute: ToolRoute,
   ApiChatRoute: ApiChatRoute,
-  ApiConvertRoute: ApiConvertRoute,
-  ApiDetectRoute: ApiDetectRoute,
-  ApiDownloadRoute: ApiDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
