@@ -18,6 +18,9 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiProxyDownloadRouteImport } from './routes/api/proxy/download'
+import { Route as ApiProxyDetectRouteImport } from './routes/api/proxy/detect'
+import { Route as ApiProxyConvertRouteImport } from './routes/api/proxy/convert'
 
 const ToolRoute = ToolRouteImport.update({
   id: '/tool',
@@ -64,6 +67,21 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxyDownloadRoute = ApiProxyDownloadRouteImport.update({
+  id: '/api/proxy/download',
+  path: '/api/proxy/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProxyDetectRoute = ApiProxyDetectRouteImport.update({
+  id: '/api/proxy/detect',
+  path: '/api/proxy/detect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProxyConvertRoute = ApiProxyConvertRouteImport.update({
+  id: '/api/proxy/convert',
+  path: '/api/proxy/convert',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +93,9 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy/convert': typeof ApiProxyConvertRoute
+  '/api/proxy/detect': typeof ApiProxyDetectRoute
+  '/api/proxy/download': typeof ApiProxyDownloadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +107,9 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy/convert': typeof ApiProxyConvertRoute
+  '/api/proxy/detect': typeof ApiProxyDetectRoute
+  '/api/proxy/download': typeof ApiProxyDownloadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +122,9 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy/convert': typeof ApiProxyConvertRoute
+  '/api/proxy/detect': typeof ApiProxyDetectRoute
+  '/api/proxy/download': typeof ApiProxyDownloadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +138,9 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/proxy/convert'
+    | '/api/proxy/detect'
+    | '/api/proxy/download'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +152,9 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/proxy/convert'
+    | '/api/proxy/detect'
+    | '/api/proxy/download'
   id:
     | '__root__'
     | '/'
@@ -133,6 +166,9 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tool'
     | '/api/chat'
+    | '/api/proxy/convert'
+    | '/api/proxy/detect'
+    | '/api/proxy/download'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +181,9 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ToolRoute: typeof ToolRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiProxyConvertRoute: typeof ApiProxyConvertRoute
+  ApiProxyDetectRoute: typeof ApiProxyDetectRoute
+  ApiProxyDownloadRoute: typeof ApiProxyDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +251,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy/download': {
+      id: '/api/proxy/download'
+      path: '/api/proxy/download'
+      fullPath: '/api/proxy/download'
+      preLoaderRoute: typeof ApiProxyDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/proxy/detect': {
+      id: '/api/proxy/detect'
+      path: '/api/proxy/detect'
+      fullPath: '/api/proxy/detect'
+      preLoaderRoute: typeof ApiProxyDetectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/proxy/convert': {
+      id: '/api/proxy/convert'
+      path: '/api/proxy/convert'
+      fullPath: '/api/proxy/convert'
+      preLoaderRoute: typeof ApiProxyConvertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,17 +285,10 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ToolRoute: ToolRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiProxyConvertRoute: ApiProxyConvertRoute,
+  ApiProxyDetectRoute: ApiProxyDetectRoute,
+  ApiProxyDownloadRoute: ApiProxyDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
