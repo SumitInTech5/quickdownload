@@ -51,7 +51,7 @@ function HowItWorks() {
           <ul className="mt-5 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
             <li className="rounded-lg border border-border bg-card p-4"><strong className="block text-foreground">Isolated workers.</strong> Each job runs in a sandboxed container with strict resource limits.</li>
             <li className="rounded-lg border border-border bg-card p-4"><strong className="block text-foreground">FFmpeg-powered.</strong> Audio extraction preserves the best available bitrate; transcoding only re-encodes when you ask.</li>
-            <li className="rounded-lg border border-border bg-card p-4"><strong className="block text-foreground">Short-lived storage.</strong> Output files live in S3-compatible storage and auto-purge shortly after download.</li>
+            <li className="rounded-lg border border-border bg-card p-4"><strong className="block text-foreground">No retained media.</strong> Detect and direct-download jobs do not store user media; conversions use temporary backend files only for immediate delivery.</li>
             <li className="rounded-lg border border-border bg-card p-4"><strong className="block text-foreground">Rate-limited.</strong> Per-IP and per-account quotas keep the service fast and prevent abuse.</li>
           </ul>
           <Button asChild className="mt-6 bg-accent text-accent-foreground hover:bg-accent/90">
