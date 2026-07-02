@@ -9,8 +9,21 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+
+# Fail fast when the signing key is missing in production. Only allow a
+# throwaway fallback while DEBUG is on so local `runserver` still works.
+_secret = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+if not _secret:
+    if DEBUG:
+        _secret = "dev-only-insecure-do-not-use-in-production"
+    else:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY environment variable is required in production. "
+            "Generate one with: python -c \"from django.core.management.utils "
+            "import get_random_secret_key; print(get_random_secret_key())\""
+        )
+SECRET_KEY = _secret
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split(",") if h.strip()]
 
