@@ -7,15 +7,80 @@ const FRIENDLY_MESSAGES: Record<number, string> = {
   504: "The downloader backend timed out.",
 };
 
-export async function forwardToBackend(path: string, request: Request): Promise<Response> {
+const SETUP_MESSAGE =
+  "Downloader backend is not connected yet. Deploy the Django backend and set BACKEND_URL and BACKEND_API_KEY in project secrets.";
+
+function getBackendConfig() {
   const base = (process.env.BACKEND_URL ?? "").replace(/\/+$/, "");
-  if (!base) {
+  const key = process.env.BACKEND_API_KEY ?? "";
+  return { base, key };
+}
+
+export async function checkBackendHealth(): Promise<Response> {
+  const { base, key } = getBackendConfig();
+  if (!base || !key) {
     return Response.json(
-      { error: "Downloader backend not configured." },
+      {
+        ok: false,
+        configured: false,
+        message: SETUP_MESSAGE,
+        missing: [!base ? "BACKEND_URL" : null, !key ? "BACKEND_API_KEY" : null].filter(Boolean),
+      },
       { status: 503 },
     );
   }
-  const key = process.env.BACKEND_API_KEY ?? "";
+
+  try {
+    const upstream = await fetch(`${base}/api/health/`, {
+      method: "GET",
+      headers: { "X-API-Key": key },
+    });
+    const text = await upstream.text();
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = text ? JSON.parse(text) as Record<string, unknown> : {};
+    } catch {
+      payload = {};
+    }
+
+    if (!upstream.ok) {
+      return Response.json(
+        {
+          ok: false,
+          configured: true,
+          message: "Downloader backend responded, but it is not ready for jobs yet.",
+          status: upstream.status,
+        },
+        { status: upstream.status },
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      configured: true,
+      message: "Downloader backend is connected and ready.",
+      ...payload,
+    });
+  } catch {
+    return Response.json(
+      {
+        ok: false,
+        configured: true,
+        message: "Downloader backend isn't reachable. Check the Render service URL and redeploy if it is sleeping.",
+      },
+      { status: 503 },
+    );
+  }
+}
+
+export async function forwardToBackend(path: string, request: Request): Promise<Response> {
+  const { base, key } = getBackendConfig();
+  if (!base || !key) {
+    return Response.json(
+      { error: SETUP_MESSAGE },
+      { status: 503 },
+    );
+  }
 
   let body: string;
   try {
@@ -25,7 +90,7 @@ export async function forwardToBackend(path: string, request: Request): Promise<
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (key) headers["X-API-Key"] = key;
+  headers["X-API-Key"] = key;
 
   let upstream: Response;
   try {

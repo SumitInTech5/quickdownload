@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import {
   FileAudio,
   FileVideo,
   AlertTriangle,
+  Server,
 } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, ApiError, type DetectResponse, type MediaStream } from "@/lib/api";
+import { api, ApiError, type BackendHealth, type DetectResponse, type MediaStream } from "@/lib/api";
 
 export const Route = createFileRoute("/tool")({
   head: () => ({
@@ -94,6 +95,74 @@ function triggerBrowserDownload(url: string) {
   a.click();
 }
 
+function BackendStatus() {
+  const [health, setHealth] = useState<BackendHealth | null>(null);
+  const [phase, setPhase] = useState<"checking" | "ready" | "setup">("checking");
+
+  useEffect(() => {
+    let mounted = true;
+    api.health()
+      .then((res) => {
+        if (!mounted) return;
+        setHealth(res);
+        setPhase(res.ok ? "ready" : "setup");
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        const e = err as ApiError;
+        setHealth({ ok: false, configured: false, message: e.message });
+        setPhase("setup");
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  if (phase === "checking") {
+    return (
+      <Alert>
+        <Loader2 className="size-4 animate-spin" />
+        <AlertTitle>Checking downloader backend</AlertTitle>
+        <AlertDescription>Verifying the Django service before starting a job.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (phase === "ready") {
+    return (
+      <Alert>
+        <Server className="size-4" />
+        <AlertTitle>Downloader backend connected</AlertTitle>
+        <AlertDescription>
+          {health?.message ?? "The Django downloader service is ready."}
+          {health?.ytdlp ? ` yt-dlp ${health.ytdlp} is available.` : ""}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle className="size-4" />
+      <AlertTitle>Connect the downloader backend</AlertTitle>
+      <AlertDescription className="space-y-3">
+        <p>{health?.message ?? "Deploy the Django backend and connect it with project secrets before running downloads."}</p>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/deploy">Open deployment guide</Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+async function ensureBackendReady() {
+  try {
+    const health = await api.health();
+    if (!health.ok) throw new ApiError(503, health.message);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(503, "Downloader backend is not ready yet.");
+  }
+}
+
 function ToolPage() {
   return (
     <PageShell>
@@ -103,6 +172,9 @@ function ToolPage() {
         description="Paste a public page URL. We'll detect every available stream, then you choose what to download or convert."
       />
       <div className="container mx-auto px-4 py-10 md:py-14">
+        <div className="mb-6">
+          <BackendStatus />
+        </div>
         <Tabs defaultValue="single" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="single">Detect</TabsTrigger>
@@ -144,6 +216,7 @@ function DetectPanel() {
     setPicked(null);
     setPhase({ kind: "working", label: "Reading source" });
     try {
+      await ensureBackendReady();
       const res = await api.detect(parsed.data);
       setData(res);
       setPhase({ kind: "idle" });
@@ -242,6 +315,7 @@ function DetectPanel() {
             setConfirmOpen(false);
             setDownloadPhase({ kind: "working", label: "Fetching link" });
             try {
+              await ensureBackendReady();
               const { download_url } = await api.download(url, picked.id);
               setDownloadPhase({ kind: "idle" });
               triggerBrowserDownload(download_url);
@@ -325,6 +399,7 @@ function ConvertPanel() {
             setConfirmOpen(false);
             setPhase({ kind: "working", label: `Converting to ${target.toUpperCase()}` });
             try {
+              await ensureBackendReady();
               const { download_url } = await api.convert(source, target, bitrate);
               setPhase({ kind: "idle" });
               triggerBrowserDownload(download_url);
@@ -364,6 +439,7 @@ function BatchPanel() {
       if (item.status !== "queued") continue;
       setItems((curr) => curr.map((x) => x.id === item.id ? { ...x, status: "processing" } : x));
       try {
+        await ensureBackendReady();
         const detected = await api.detect(item.url);
         const best = detected.streams[0];
         if (!best) throw new ApiError(404, "No streams detected for this URL");

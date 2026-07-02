@@ -23,6 +23,14 @@ export interface MediaLink {
   filename?: string;
 }
 
+export interface BackendHealth {
+  ok: boolean;
+  configured: boolean;
+  message: string;
+  ytdlp?: string;
+  missing?: string[];
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -72,7 +80,31 @@ async function rawPost<T>(path: string, body: Record<string, unknown>): Promise<
   return json as T;
 }
 
+async function rawGet<T>(path: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "GET" });
+  } catch {
+    throw new ApiError(0, FRIENDLY_BY_STATUS[0]);
+  }
+  const text = await res.text();
+  let json: unknown = null;
+  try { json = text ? JSON.parse(text) : null; } catch { /* */ }
+  if (!res.ok) {
+    const upstreamMsg =
+      json && typeof json === "object" && "message" in (json as Record<string, unknown>)
+        ? String((json as Record<string, unknown>).message)
+        : json && typeof json === "object" && "error" in (json as Record<string, unknown>)
+          ? String((json as Record<string, unknown>).error)
+          : "";
+    const friendly = FRIENDLY_BY_STATUS[res.status] ?? `Request failed (${res.status})`;
+    throw new ApiError(res.status, upstreamMsg || friendly);
+  }
+  return json as T;
+}
+
 export const api = {
+  health: () => rawGet<BackendHealth>("/api/proxy/health"),
   detect: (url: string) =>
     rawPost<DetectResponse>("/api/proxy/detect", { url }),
   download: (url: string, streamId: string) =>
