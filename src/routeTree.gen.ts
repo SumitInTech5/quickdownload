@@ -16,8 +16,10 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as DeployRouteImport } from './routes/deploy'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiProxyHealthRouteImport } from './routes/api/proxy/health'
 import { Route as ApiProxyDownloadRouteImport } from './routes/api/proxy/download'
 import { Route as ApiProxyDetectRouteImport } from './routes/api/proxy/detect'
 import { Route as ApiProxyConvertRouteImport } from './routes/api/proxy/convert'
@@ -57,6 +59,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeployRoute = DeployRouteImport.update({
+  id: '/deploy',
+  path: '/deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -65,6 +72,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProxyHealthRoute = ApiProxyHealthRouteImport.update({
+  id: '/api/proxy/health',
+  path: '/api/proxy/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProxyDownloadRoute = ApiProxyDownloadRouteImport.update({
@@ -85,6 +97,7 @@ const ApiProxyConvertRoute = ApiProxyConvertRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/deploy': typeof DeployRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -96,9 +109,11 @@ export interface FileRoutesByFullPath {
   '/api/proxy/convert': typeof ApiProxyConvertRoute
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
+  '/api/proxy/health': typeof ApiProxyHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/deploy': typeof DeployRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -110,10 +125,12 @@ export interface FileRoutesByTo {
   '/api/proxy/convert': typeof ApiProxyConvertRoute
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
+  '/api/proxy/health': typeof ApiProxyHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/deploy': typeof DeployRoute
   '/faq': typeof FaqRoute
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -125,11 +142,13 @@ export interface FileRoutesById {
   '/api/proxy/convert': typeof ApiProxyConvertRoute
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
+  '/api/proxy/health': typeof ApiProxyHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/deploy'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -141,9 +160,11 @@ export interface FileRouteTypes {
     | '/api/proxy/convert'
     | '/api/proxy/detect'
     | '/api/proxy/download'
+    | '/api/proxy/health'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/deploy'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -155,9 +176,11 @@ export interface FileRouteTypes {
     | '/api/proxy/convert'
     | '/api/proxy/detect'
     | '/api/proxy/download'
+    | '/api/proxy/health'
   id:
     | '__root__'
     | '/'
+    | '/deploy'
     | '/faq'
     | '/help'
     | '/how-it-works'
@@ -169,10 +192,12 @@ export interface FileRouteTypes {
     | '/api/proxy/convert'
     | '/api/proxy/detect'
     | '/api/proxy/download'
+    | '/api/proxy/health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DeployRoute: typeof DeployRoute
   FaqRoute: typeof FaqRoute
   HelpRoute: typeof HelpRoute
   HowItWorksRoute: typeof HowItWorksRoute
@@ -184,6 +209,7 @@ export interface RootRouteChildren {
   ApiProxyConvertRoute: typeof ApiProxyConvertRoute
   ApiProxyDetectRoute: typeof ApiProxyDetectRoute
   ApiProxyDownloadRoute: typeof ApiProxyDownloadRoute
+  ApiProxyHealthRoute: typeof ApiProxyHealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -237,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/deploy': {
+      id: '/deploy'
+      path: '/deploy'
+      fullPath: '/deploy'
+      preLoaderRoute: typeof DeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -249,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/proxy/health': {
+      id: '/api/proxy/health'
+      path: '/api/proxy/health'
+      fullPath: '/api/proxy/health'
+      preLoaderRoute: typeof ApiProxyHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/proxy/download': {
@@ -277,6 +317,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DeployRoute: DeployRoute,
   FaqRoute: FaqRoute,
   HelpRoute: HelpRoute,
   HowItWorksRoute: HowItWorksRoute,
@@ -288,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProxyConvertRoute: ApiProxyConvertRoute,
   ApiProxyDetectRoute: ApiProxyDetectRoute,
   ApiProxyDownloadRoute: ApiProxyDownloadRoute,
+  ApiProxyHealthRoute: ApiProxyHealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

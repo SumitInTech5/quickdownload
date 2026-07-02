@@ -43,7 +43,7 @@ const faqs = [
   { q: "Will downloads be original quality?", a: "The site lists available source qualities and lets you download the highest available stream. If the source provides multiple bitrates, you can choose the original stream." },
   { q: "Is conversion safe and lossless?", a: "Conversions use FFmpeg. Audio extraction preserves the best available bitrate; transcoding may re-encode depending on chosen settings." },
   { q: "What about privacy?", a: "We do not sell personal data. We retain only the minimum information needed to operate the service. See the Privacy Policy for details." },
-  { q: "How do I report copyright infringement?", a: "Use the takedown form on the Help & Support page. Provide the URL and a brief reason; we respond promptly and may suspend repeat infringers." },
+  { q: "How do I report copyright infringement?", a: "Use the AI assistant on the Help page for guidance. The service requires copyright confirmation before every download and may block misuse." },
   { q: "Are there limits to how much I can download?", a: "Yes. Per-IP and per-account rate limits keep the service fast and abuse-free. If you hit a limit, wait a moment and try again." },
 ];
 

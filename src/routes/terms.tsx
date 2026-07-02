@@ -52,8 +52,7 @@ function Terms() {
           repeated infringement, or attempts to bypass protections.
         </Section>
         <Section n="8" title="Governing Law">
-          These Terms are governed by the laws of the jurisdiction specified in the site footer. Any disputes shall be resolved in
-          the courts of that jurisdiction.
+          Governed by the Laws.
         </Section>
         <Section n="9" title="Changes">
           We may update these Terms from time to time. We will post changes on this page. Continued use after changes
