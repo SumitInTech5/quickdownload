@@ -5,14 +5,17 @@ The Lovable frontend calls a self-hosted Django backend that runs yt-dlp.
 ## Layout
 
 - `backend/` — Django project (see `backend/README.md`).
-- `src/lib/api.ts` — thin client. Reads `VITE_BACKEND_URL` and optional `VITE_BACKEND_API_KEY`, calls `${BACKEND}/api/detect|download|convert/`.
+- `src/routes/api/proxy/*.ts` — server-side proxy that injects the backend API key.
+- `src/lib/api.ts` — browser client. Calls the same-origin `/api/proxy/*` routes.
 
-## Frontend env
+## Server env (set in Lovable project secrets, NOT VITE_)
 
 ```
-VITE_BACKEND_URL=https://<your-django-host>
-VITE_BACKEND_API_KEY=<optional, must match backend API_KEY if set>
+BACKEND_URL=https://<your-django-host>
+BACKEND_API_KEY=<must match backend API_KEY>
 ```
+
+The key is intentionally not `VITE_`-prefixed so it stays on the server.
 
 ## Deploy
 
