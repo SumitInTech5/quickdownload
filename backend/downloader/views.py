@@ -7,6 +7,7 @@ import socket
 from urllib.parse import urlparse
 
 import yt_dlp
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -95,7 +96,17 @@ class HealthView(APIView):
     permission_classes = []
 
     def get(self, request):
-        return Response({"ok": True, "ytdlp": yt_dlp.version.__version__})
+        configured_key = getattr(settings, "API_KEY", "")
+        provided_key = request.headers.get("X-API-Key", "")
+        authenticated = bool(configured_key) and provided_key == configured_key
+        if provided_key and not authenticated:
+            return Response({"ok": False, "message": "Invalid backend API key."}, status=401)
+        return Response({
+            "ok": True,
+            "ytdlp": yt_dlp.version.__version__,
+            "auth_required": bool(configured_key),
+            "authenticated": authenticated,
+        })
 
 
 class DetectView(APIView):
