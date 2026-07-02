@@ -8,6 +8,24 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Basic anti-abuse: only allow requests initiated by our own site.
+        // Blocks anonymous cross-origin scripts and most automated clients
+        // from burning AI credits, without requiring a full auth layer.
+        const origin = request.headers.get("origin");
+        const referer = request.headers.get("referer");
+        const host = request.headers.get("host") ?? "";
+        const sameOrigin = (value: string | null) => {
+          if (!value) return false;
+          try {
+            return new URL(value).host === host;
+          } catch {
+            return false;
+          }
+        };
+        if (!sameOrigin(origin) && !sameOrigin(referer)) {
+          return new Response("Forbidden", { status: 403 });
+        }
+
         const { messages } = (await request.json()) as ChatRequestBody;
         if (!Array.isArray(messages)) {
           return new Response("Messages are required", { status: 400 });
