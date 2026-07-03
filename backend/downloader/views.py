@@ -106,6 +106,18 @@ class HealthView(APIView):
             "ytdlp": yt_dlp.version.__version__,
             "auth_required": bool(configured_key),
             "authenticated": authenticated,
+            "cookies": services.cookie_status(),
+            "proxy": {"configured": bool(getattr(settings, "YTDLP_PROXY", None))},
+        })
+
+
+class SettingsView(APIView):
+    permission_classes = [ApiKeyPermission]
+
+    def get(self, request):
+        return Response({
+            "cookies": services.cookie_status(),
+            "proxy": {"configured": bool(getattr(settings, "YTDLP_PROXY", None))},
         })
 
 
@@ -164,6 +176,9 @@ class ConvertView(APIView):
             )
         try:
             return Response(services.convert(url, target_format, bitrate))
-        except Exception:
+        except Exception as exc:
             log.exception("convert failed")
-            return Response({"error": GENERIC_ERROR}, status=502)
+            return Response(
+                {"error": f"Conversion failed: {type(exc).__name__}: {str(exc)[:300]}"},
+                status=502,
+            )

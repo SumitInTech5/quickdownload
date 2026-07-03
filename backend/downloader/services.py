@@ -25,6 +25,37 @@ def _base_opts() -> Dict[str, Any]:
     return opts
 
 
+def cookie_status() -> Dict[str, Any]:
+    cookie_file = settings.YTDLP_COOKIES_FILE
+    if not cookie_file:
+        return {
+            "configured": False,
+            "available": False,
+            "readable": False,
+            "pathLabel": None,
+            "message": "YouTube cookies are not configured.",
+        }
+
+    path = Path(cookie_file)
+    exists = path.is_file()
+    readable = bool(exists and os.access(path, os.R_OK))
+    label = str(path) if str(path).startswith("/app/") else path.name
+    if readable:
+        message = "YouTube cookies are configured and readable."
+    elif exists:
+        message = "YTDLP_COOKIES_FILE is set, but the file is not readable."
+    else:
+        message = "YTDLP_COOKIES_FILE is set, but the file was not found."
+
+    return {
+        "configured": True,
+        "available": readable,
+        "readable": readable,
+        "pathLabel": label,
+        "message": message,
+    }
+
+
 def _human_size(n: Optional[int]) -> Optional[str]:
     if not n or n <= 0:
         return None
