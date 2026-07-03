@@ -1,46 +1,14 @@
-## Plan: make the Django backend deployment path usable
+## Connect the deployed backend
 
-### Goal
-Remove the confusing `VITE_BACKEND_URL` message and make the project ready for a real Django + yt-dlp backend deployed on Render by you.
+You've deployed the Django backend on Render. I'll wire it up to the frontend by saving the two values as project secrets so the server-side proxy routes can reach it.
 
-### Changes to make
-1. **Add a Render blueprint**
-   - Create `render.yaml` for the `backend/` Docker service.
-   - Configure the health check path as `/api/health/`.
-   - Define required environment variables for Render:
-     - `DJANGO_SECRET_KEY`
-     - `API_KEY`
-     - `ALLOWED_HOSTS`
-     - `CORS_ALLOWED_ORIGINS`
-     - `PUBLIC_BASE_URL`
+### Steps
+1. Save `BACKEND_URL` = `https://all-video-downloader-backend-0klz.onrender.com` as a project secret (via `set_secret`).
+2. Save `BACKEND_API_KEY` = the provided key as a project secret (via `set_secret`).
+3. Hit `/api/proxy/health` to confirm the backend responds `ok: true` and yt-dlp version is reported.
+4. If health passes, run a quick detect against a known public URL to confirm end-to-end extraction works. If it fails, report the exact upstream status/message.
 
-2. **Update backend docs**
-   - Replace the old frontend instructions that mention:
-     - `VITE_BACKEND_URL`
-     - `VITE_BACKEND_API_KEY`
-   - Use the current secure server-side setup instead:
-     - `BACKEND_URL`
-     - `BACKEND_API_KEY`
-   - Add step-by-step Render deployment instructions.
-
-3. **Add/verify backend health support**
-   - Confirm the Django backend exposes `/api/health/`.
-   - If needed, make the response clear enough for the frontend to display whether yt-dlp is available.
-
-4. **Add frontend proxy health route**
-   - Add `/api/proxy/health` in the TanStack app.
-   - It will read `BACKEND_URL` and `BACKEND_API_KEY` server-side only.
-   - If secrets are missing, it returns a clear setup-required status instead of a generic failure.
-
-5. **Update the Convert & Download tool**
-   - Replace “Set `VITE_BACKEND_URL`” with a clear message explaining that the Django backend must be deployed and connected.
-   - Add a visible link/button to deployment instructions.
-   - Check backend health before detect/download/convert so users see a friendly setup message first.
-
-6. **Add a `/deploy` guide page**
-   - Create an in-app checklist for deploying `backend/` on Render.
-   - Include the exact values the user needs to copy between Render and Lovable secrets.
-   - Keep it simple and non-technical enough to follow.
-
-### Important limitation
-I cannot create a Render account, deploy under my own account, or host the backend for you. After these changes, you still need to click through Render deployment and paste the resulting backend URL/API key into project secrets. Once that is done, I can verify and fix remaining connection issues.
+### Notes
+- These go into runtime secrets (server-side only), not `VITE_*`, so the API key never ships to the browser.
+- Since you pasted the API key in chat, rotate it in Render → Environment after we confirm the connection works, then update the secret with `update_secret`.
+- No code changes required — the proxy routes and health banner are already in place.
