@@ -94,11 +94,21 @@ export async function forwardToBackend(path: string, request: Request): Promise<
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${base}${path}`, { method: "POST", headers, body });
-  } catch {
+    upstream = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers,
+      body,
+      signal: AbortSignal.timeout(55_000),
+    });
+  } catch (err) {
+    const timedOut = (err as { name?: string } | null)?.name === "TimeoutError";
     return Response.json(
-      { error: "The downloader backend isn't reachable." },
-      { status: 503 },
+      {
+        error: timedOut
+          ? "The downloader backend took too long to respond. It may be waking up from sleep — please retry in ~30 seconds."
+          : "The downloader backend isn't reachable.",
+      },
+      { status: timedOut ? 504 : 503 },
     );
   }
 
