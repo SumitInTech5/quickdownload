@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ToolRouteImport } from './routes/tool'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as HelpRouteImport } from './routes/help'
@@ -19,6 +20,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DeployRouteImport } from './routes/deploy'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiProxySettingsRouteImport } from './routes/api/proxy/settings'
 import { Route as ApiProxyHealthRouteImport } from './routes/api/proxy/health'
 import { Route as ApiProxyDownloadRouteImport } from './routes/api/proxy/download'
 import { Route as ApiProxyDetectRouteImport } from './routes/api/proxy/detect'
@@ -37,6 +39,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -74,6 +81,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxySettingsRoute = ApiProxySettingsRouteImport.update({
+  id: '/api/proxy/settings',
+  path: '/api/proxy/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProxyHealthRoute = ApiProxyHealthRouteImport.update({
   id: '/api/proxy/health',
   path: '/api/proxy/health',
@@ -102,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
   '/privacy': typeof PrivacyRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
@@ -110,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +132,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
   '/privacy': typeof PrivacyRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
@@ -126,6 +141,7 @@ export interface FileRoutesByTo {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,6 +151,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/how-it-works': typeof HowItWorksRoute
   '/privacy': typeof PrivacyRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/tool': typeof ToolRoute
@@ -143,6 +160,7 @@ export interface FileRoutesById {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -153,6 +171,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/how-it-works'
     | '/privacy'
+    | '/settings'
     | '/sitemap.xml'
     | '/terms'
     | '/tool'
@@ -161,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -169,6 +189,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/how-it-works'
     | '/privacy'
+    | '/settings'
     | '/sitemap.xml'
     | '/terms'
     | '/tool'
@@ -177,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   id:
     | '__root__'
     | '/'
@@ -185,6 +207,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/how-it-works'
     | '/privacy'
+    | '/settings'
     | '/sitemap.xml'
     | '/terms'
     | '/tool'
@@ -193,6 +216,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -202,6 +226,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   HowItWorksRoute: typeof HowItWorksRoute
   PrivacyRoute: typeof PrivacyRoute
+  SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   ToolRoute: typeof ToolRoute
@@ -210,6 +235,7 @@ export interface RootRouteChildren {
   ApiProxyDetectRoute: typeof ApiProxyDetectRoute
   ApiProxyDownloadRoute: typeof ApiProxyDownloadRoute
   ApiProxyHealthRoute: typeof ApiProxyHealthRoute
+  ApiProxySettingsRoute: typeof ApiProxySettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -233,6 +259,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -284,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy/settings': {
+      id: '/api/proxy/settings'
+      path: '/api/proxy/settings'
+      fullPath: '/api/proxy/settings'
+      preLoaderRoute: typeof ApiProxySettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/proxy/health': {
       id: '/api/proxy/health'
       path: '/api/proxy/health'
@@ -322,6 +362,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   HowItWorksRoute: HowItWorksRoute,
   PrivacyRoute: PrivacyRoute,
+  SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   ToolRoute: ToolRoute,
@@ -330,7 +371,18 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProxyDetectRoute: ApiProxyDetectRoute,
   ApiProxyDownloadRoute: ApiProxyDownloadRoute,
   ApiProxyHealthRoute: ApiProxyHealthRoute,
+  ApiProxySettingsRoute: ApiProxySettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

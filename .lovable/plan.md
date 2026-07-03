@@ -1,14 +1,26 @@
-## Connect the deployed backend
+## Plan
 
-You've deployed the Django backend on Render. I'll wire it up to the frontend by saving the two values as project secrets so the server-side proxy routes can reach it.
+1. **Expose YouTube cookie status from the backend**
+   - Add a small backend settings/status endpoint that reports whether `YTDLP_COOKIES_FILE` is configured and whether the referenced file exists/readable.
+   - Include the same cookie status in `/api/health/` so the current tool page can show it without extra setup.
+   - Never expose the cookie contents or full secret values; only show safe status like `configured`, `available`, and a short path label.
 
-### Steps
-1. Save `BACKEND_URL` = `https://all-video-downloader-backend-0klz.onrender.com` as a project secret (via `set_secret`).
-2. Save `BACKEND_API_KEY` = the provided key as a project secret (via `set_secret`).
-3. Hit `/api/proxy/health` to confirm the backend responds `ok: true` and yt-dlp version is reported.
-4. If health passes, run a quick detect against a known public URL to confirm end-to-end extraction works. If it fails, report the exact upstream status/message.
+2. **Add a settings flow in the app**
+   - Create a Settings area reachable from the tool/deploy flow.
+   - Let the user choose between:
+     - referencing an existing backend file path such as `/app/cookies.txt`, and
+     - uploading/pasting a `cookies.txt` file for guidance.
+   - Because the actual Django backend runs on Render, the UI will provide exact Render environment variable instructions for `YTDLP_COOKIES_FILE`; it will not pretend the frontend can directly write files into Render.
 
-### Notes
-- These go into runtime secrets (server-side only), not `VITE_*`, so the API key never ships to the browser.
-- Since you pasted the API key in chat, rotate it in Render → Environment after we confirm the connection works, then update the secret with `update_secret`.
-- No code changes required — the proxy routes and health banner are already in place.
+3. **Show cookie usage during detection/conversion**
+   - Update the backend status banner on `/tool` to display whether cookies are active.
+   - Add a small status line near Detect and Convert work states so users know if yt-dlp is running with cookies or without them.
+
+4. **Fix the 504 convert experience**
+   - Convert jobs can exceed the frontend proxy/request timeout, especially on Render free instances and for long media.
+   - Keep the current proxy timeout guard, but improve the returned message so the UI explains that conversion is still a long-running backend operation and suggests retrying shorter media or using direct Detect/Download.
+   - Update Django `ConvertView` to surface the real conversion error type/message like Detect already does, instead of returning only `Request failed`.
+
+5. **Document the operational fix**
+   - Update backend docs and `.env.example` with the safe `YTDLP_COOKIES_FILE=/app/cookies.txt` setup and Render deployment notes.
+   - Mention that a true permanent fix for long conversions is an async queue/background worker; this plan will improve visibility and error handling without adding a database-backed queue.

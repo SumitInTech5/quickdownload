@@ -10,6 +10,8 @@ const FRIENDLY_MESSAGES: Record<number, string> = {
 const SETUP_MESSAGE =
   "Downloader backend is not connected yet. Deploy the Django backend and set BACKEND_URL and BACKEND_API_KEY in project secrets.";
 
+const PROXY_TIMEOUT_MS = 25_000;
+
 function getBackendConfig() {
   const base = (process.env.BACKEND_URL ?? "").replace(/\/+$/, "");
   const key = process.env.BACKEND_API_KEY ?? "";
@@ -73,6 +75,40 @@ export async function checkBackendHealth(): Promise<Response> {
   }
 }
 
+export async function checkBackendSettings(): Promise<Response> {
+  const { base, key } = getBackendConfig();
+  if (!base || !key) {
+    return Response.json(
+      { error: SETUP_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  try {
+    const upstream = await fetch(`${base}/api/settings/`, {
+      method: "GET",
+      headers: { "X-API-Key": key },
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+    });
+    const text = await upstream.text();
+    return new Response(text, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch {
+    return Response.json(
+      { error: "Downloader backend settings are not reachable right now." },
+      { status: 503 },
+    );
+  }
+}
+
+function backendErrorResponse(error: string, status: number): Response {
+  return Response.json({ error, status }, { status: 200 });
+}
+
 export async function forwardToBackend(path: string, request: Request): Promise<Response> {
   const { base, key } = getBackendConfig();
   if (!base || !key) {
@@ -98,17 +134,15 @@ export async function forwardToBackend(path: string, request: Request): Promise<
       method: "POST",
       headers,
       body,
-      signal: AbortSignal.timeout(55_000),
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
     });
   } catch (err) {
     const timedOut = (err as { name?: string } | null)?.name === "TimeoutError";
-    return Response.json(
-      {
-        error: timedOut
-          ? "The downloader backend took too long to respond. It may be waking up from sleep — please retry in ~30 seconds."
-          : "The downloader backend isn't reachable.",
-      },
-      { status: timedOut ? 504 : 503 },
+    return backendErrorResponse(
+      timedOut
+        ? "The downloader backend took too long to respond. Conversions can exceed the request window on long media or a waking Render service; try a shorter clip, retry after the backend is awake, or use Detect to download a source stream directly."
+        : "The downloader backend isn't reachable.",
+      timedOut ? 504 : 503,
     );
   }
 
@@ -133,5 +167,5 @@ export async function forwardToBackend(path: string, request: Request): Promise<
     }
   } catch { /* ignore */ }
   clientError = clientError ?? FRIENDLY_MESSAGES[upstream.status] ?? "Request failed.";
-  return Response.json({ error: clientError }, { status: upstream.status });
+  return backendErrorResponse(clientError, upstream.status);
 }

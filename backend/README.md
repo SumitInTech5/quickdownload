@@ -8,7 +8,8 @@ All endpoints are under `/api/`. Job endpoints require `X-API-Key: <API_KEY>` in
 
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
-| GET | `/api/health/` | — | `{ok, ytdlp, auth_required, authenticated}` |
+| GET | `/api/health/` | — | `{ok, ytdlp, auth_required, authenticated, cookies, proxy}` |
+| GET | `/api/settings/` | — | `{cookies, proxy}` |
 | POST | `/api/detect/` | `{url}` | `{title, thumbnail, previewUrl, streams[]}` |
 | POST | `/api/download/` | `{url, format_id}` | `{download_url, filename}` |
 | POST | `/api/convert/` | `{url, target_format, bitrate?}` | `{download_url, filename}` |
@@ -27,6 +28,22 @@ Allowed `target_format`: `mp3`, `aac`, `wav`, `ogg`, `m4a`, `mp4`.
    - `CORS_ALLOWED_ORIGINS` to your Lovable published domain and preview domain if needed.
 6. Deploy the service.
 7. Confirm `https://your-service.onrender.com/api/health/` returns JSON with `ok: true`.
+
+## YouTube cookies
+
+YouTube may block shared cloud hosts with bot checks. To let yt-dlp reuse an authorized browser session:
+
+1. Export a Netscape-format `cookies.txt` file from a browser profile that can view YouTube.
+2. Make the file available inside the Render backend container. Prefer Render secret files or another private deployment path; do not commit personal cookies to a public repo.
+3. Set this Render environment variable:
+
+```text
+YTDLP_COOKIES_FILE=/app/cookies.txt
+```
+
+4. Redeploy the backend and check `/api/health/` or `/api/settings/`. The response includes `cookies.available: true` when the file exists and is readable.
+
+Cookies help with YouTube bot checks, but they do not bypass DRM and they do not remove request-time limits for very long conversions.
 
 ## Connect the Lovable frontend
 
@@ -70,5 +87,6 @@ curl -X POST http://localhost:8000/api/detect/ \
 ## Reliability notes
 
 - YouTube can rate-limit shared cloud IPs. If this happens, add `YTDLP_COOKIES_FILE` or `YTDLP_PROXY` on the backend host.
+- Long conversions can exceed frontend/proxy request windows. For production-grade long jobs, move conversion into a queue/background worker and return a job ID immediately.
 - DRM sources are not supported. yt-dlp cannot and should not bypass DRM.
 - Render free services may sleep. The first request after sleeping can take longer.
