@@ -19,6 +19,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DeployRouteImport } from './routes/deploy'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiProxySettingsRouteImport } from './routes/api/proxy/settings'
 import { Route as ApiProxyHealthRouteImport } from './routes/api/proxy/health'
 import { Route as ApiProxyDownloadRouteImport } from './routes/api/proxy/download'
 import { Route as ApiProxyDetectRouteImport } from './routes/api/proxy/detect'
@@ -74,6 +75,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxySettingsRoute = ApiProxySettingsRouteImport.update({
+  id: '/api/proxy/settings',
+  path: '/api/proxy/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProxyHealthRoute = ApiProxyHealthRouteImport.update({
   id: '/api/proxy/health',
   path: '/api/proxy/health',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/api/proxy/detect': typeof ApiProxyDetectRoute
   '/api/proxy/download': typeof ApiProxyDownloadRoute
   '/api/proxy/health': typeof ApiProxyHealthRoute
+  '/api/proxy/settings': typeof ApiProxySettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/api/proxy/detect'
     | '/api/proxy/download'
     | '/api/proxy/health'
+    | '/api/proxy/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   ApiProxyDetectRoute: typeof ApiProxyDetectRoute
   ApiProxyDownloadRoute: typeof ApiProxyDownloadRoute
   ApiProxyHealthRoute: typeof ApiProxyHealthRoute
+  ApiProxySettingsRoute: typeof ApiProxySettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy/settings': {
+      id: '/api/proxy/settings'
+      path: '/api/proxy/settings'
+      fullPath: '/api/proxy/settings'
+      preLoaderRoute: typeof ApiProxySettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/proxy/health': {
       id: '/api/proxy/health'
       path: '/api/proxy/health'
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProxyDetectRoute: ApiProxyDetectRoute,
   ApiProxyDownloadRoute: ApiProxyDownloadRoute,
   ApiProxyHealthRoute: ApiProxyHealthRoute,
+  ApiProxySettingsRoute: ApiProxySettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

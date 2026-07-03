@@ -13,6 +13,8 @@ import {
   FileAudio,
   FileVideo,
   AlertTriangle,
+  Cookie,
+  Settings,
   Server,
 } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/PageShell";
@@ -33,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, ApiError, type BackendHealth, type DetectResponse, type MediaStream } from "@/lib/api";
+import { api, ApiError, type BackendHealth, type DetectResponse, type MediaStream, type YtdlpCookieStatus } from "@/lib/api";
 
 export const Route = createFileRoute("/tool")({
   head: () => ({
@@ -87,6 +89,53 @@ function ProgressStrip({ phase }: { phase: Phase }) {
   );
 }
 
+function CookieStatusPill({ cookies }: { cookies?: YtdlpCookieStatus | null }) {
+  if (!cookies) return <Badge variant="secondary">Cookie status unknown</Badge>;
+  if (cookies.available) return <Badge>Cookies active</Badge>;
+  if (cookies.configured) return <Badge variant="destructive">Cookie file unavailable</Badge>;
+  return <Badge variant="secondary">No cookies</Badge>;
+}
+
+function CookieUsageNotice() {
+  const [cookies, setCookies] = useState<YtdlpCookieStatus | null>(null);
+  const [phase, setPhase] = useState<"checking" | "ready" | "error">("checking");
+
+  useEffect(() => {
+    let mounted = true;
+    api.settings()
+      .then((res) => {
+        if (!mounted) return;
+        setCookies(res.cookies);
+        setPhase("ready");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setPhase("error");
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+      <Cookie className="size-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">YouTube cookies</span>
+          {phase === "checking" ? <Badge variant="secondary">Checking</Badge> : <CookieStatusPill cookies={cookies} />}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {phase === "error"
+            ? "Cookie status is unavailable. Detection will still run with the backend defaults."
+            : cookies?.message ?? "Checking whether yt-dlp will use cookies for restricted YouTube requests."}
+        </div>
+      </div>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/settings"><Settings className="size-4" /> Settings</Link>
+      </Button>
+    </div>
+  );
+}
+
 function triggerBrowserDownload(url: string) {
   const a = document.createElement("a");
   a.href = url;
@@ -131,9 +180,19 @@ function BackendStatus() {
       <Alert>
         <Server className="size-4" />
         <AlertTitle>Downloader backend connected</AlertTitle>
-        <AlertDescription>
-          {health?.message ?? "The Django downloader service is ready."}
-          {health?.ytdlp ? ` yt-dlp ${health.ytdlp} is available.` : ""}
+        <AlertDescription className="space-y-3">
+          <p>
+            {health?.message ?? "The Django downloader service is ready."}
+            {health?.ytdlp ? ` yt-dlp ${health.ytdlp} is available.` : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <CookieStatusPill cookies={health?.cookies} />
+            {health?.cookies?.pathLabel && <Badge variant="secondary">{health.cookies.pathLabel}</Badge>}
+            <Button asChild variant="outline" size="sm">
+              <Link to="/settings"><Settings className="size-4" /> Cookie settings</Link>
+            </Button>
+          </div>
+          {health?.cookies?.message && <p className="text-xs text-muted-foreground">{health.cookies.message}</p>}
         </AlertDescription>
       </Alert>
     );
@@ -262,6 +321,7 @@ function DetectPanel() {
 
         <ProgressStrip phase={phase} />
         <ProgressStrip phase={downloadPhase} />
+        <CookieUsageNotice />
 
         {data && (
           <div className="space-y-4">
@@ -390,6 +450,7 @@ function ConvertPanel() {
         </Button>
 
         <ProgressStrip phase={phase} />
+        <CookieUsageNotice />
 
         <CopyrightDialog
           open={confirmOpen}
