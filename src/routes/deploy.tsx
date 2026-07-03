@@ -29,6 +29,7 @@ const renderVars = [
   { name: "ALLOWED_HOSTS", value: "your-service.onrender.com", note: "Use the host from your Render service URL." },
   { name: "CORS_ALLOWED_ORIGINS", value: "https://quickdownload.lovable.app", note: "Add preview URL too when testing from preview." },
   { name: "PUBLIC_BASE_URL", value: "https://your-service.onrender.com", note: "Full public URL of the Render service." },
+  { name: "YTDLP_COOKIES_FILE", value: "/app/cookies.txt", note: "Optional. Enables yt-dlp cookies for YouTube bot checks when the file exists." },
 ];
 
 const steps = [
@@ -149,6 +150,9 @@ function DeployPage() {
               </div>
               <Button asChild className="w-full">
                 <Link to="/tool">Go to tool</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/settings">Check cookie settings</Link>
               </Button>
             </CardContent>
           </Card>

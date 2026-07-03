@@ -16,6 +16,7 @@ const nav = [
   { to: "/how-it-works", label: "How it works" },
   { to: "/faq", label: "FAQ" },
   { to: "/help", label: "Help" },
+  { to: "/settings", label: "Settings" },
   { to: "/deploy", label: "Deploy" },
 ];
 
