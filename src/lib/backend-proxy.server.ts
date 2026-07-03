@@ -122,17 +122,16 @@ export async function forwardToBackend(path: string, request: Request): Promise<
     });
   }
 
-  let clientError = FRIENDLY_MESSAGES[upstream.status];
-  if (!clientError) {
-    if (upstream.status >= 400 && upstream.status < 500) {
-      try {
-        const parsed = JSON.parse(text) as { error?: unknown };
-        if (typeof parsed.error === "string" && parsed.error.length < 200) {
-          clientError = parsed.error;
-        }
-      } catch { /* ignore */ }
+  // Always try to surface the backend's actual error message (4xx or 5xx),
+  // so users see e.g. "Sign in to confirm you're not a bot" instead of a
+  // generic "backend had trouble" hint.
+  let clientError: string | undefined;
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error.length > 0) {
+      clientError = parsed.error.slice(0, 500);
     }
-    clientError = clientError ?? "Request failed.";
-  }
+  } catch { /* ignore */ }
+  clientError = clientError ?? FRIENDLY_MESSAGES[upstream.status] ?? "Request failed.";
   return Response.json({ error: clientError }, { status: upstream.status });
 }
