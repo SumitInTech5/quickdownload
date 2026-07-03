@@ -29,6 +29,21 @@ export interface BackendHealth {
   message: string;
   ytdlp?: string;
   missing?: string[];
+  cookies?: YtdlpCookieStatus;
+  proxy?: { configured: boolean };
+}
+
+export interface YtdlpCookieStatus {
+  configured: boolean;
+  available: boolean;
+  readable: boolean;
+  pathLabel?: string | null;
+  message?: string;
+}
+
+export interface BackendSettings {
+  cookies: YtdlpCookieStatus;
+  proxy?: { configured: boolean };
 }
 
 export class ApiError extends Error {
@@ -77,6 +92,11 @@ async function rawPost<T>(path: string, body: Record<string, unknown>): Promise<
     const friendly = FRIENDLY_BY_STATUS[res.status] ?? `Request failed (${res.status})`;
     throw new ApiError(res.status, upstreamMsg || friendly);
   }
+  if (json && typeof json === "object" && "error" in (json as Record<string, unknown>)) {
+    const payload = json as Record<string, unknown>;
+    const status = typeof payload.status === "number" ? payload.status : 500;
+    throw new ApiError(status, String(payload.error));
+  }
   return json as T;
 }
 
@@ -105,6 +125,7 @@ async function rawGet<T>(path: string): Promise<T> {
 
 export const api = {
   health: () => rawGet<BackendHealth>("/api/proxy/health"),
+  settings: () => rawGet<BackendSettings>("/api/proxy/settings"),
   detect: (url: string) =>
     rawPost<DetectResponse>("/api/proxy/detect", { url }),
   download: (url: string, streamId: string) =>
