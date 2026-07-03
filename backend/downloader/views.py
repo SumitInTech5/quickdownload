@@ -118,9 +118,12 @@ class DetectView(APIView):
             return Response({"error": "Invalid or missing URL."}, status=400)
         try:
             return Response(services.detect(url))
-        except Exception:
+        except Exception as exc:
             log.exception("detect failed")
-            return Response({"error": GENERIC_ERROR}, status=502)
+            return Response(
+                {"error": f"Extraction failed: {type(exc).__name__}: {str(exc)[:300]}"},
+                status=502,
+            )
 
 
 class DownloadView(APIView):
