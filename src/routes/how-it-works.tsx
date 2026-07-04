@@ -23,7 +23,7 @@ export const Route = createFileRoute("/how-it-works")({
 const steps = [
   { icon: Link2, title: "Paste a public URL", desc: "Drop any link from a public web page. We never touch DRM-protected content or bypass platform protections." },
   { icon: ListChecks, title: "Pick a stream or format", desc: "We list every available resolution, bitrate, and container with file size up front so you choose with eyes open." },
-  { icon: Download, title: "Download or convert", desc: "Pull the original file, or transcode to MP3, AAC, WAV, or MP4 with bitrate and sample-rate control." },
+  { icon: Download, title: "Download or convert", desc: "Pull an available MP4 stream, merge best video/audio to MP4, or extract best-quality MP3 audio." },
 ];
 
 function HowItWorks() {

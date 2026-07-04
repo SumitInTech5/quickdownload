@@ -1,26 +1,60 @@
 ## Plan
 
-1. **Expose YouTube cookie status from the backend**
-   - Add a small backend settings/status endpoint that reports whether `YTDLP_COOKIES_FILE` is configured and whether the referenced file exists/readable.
-   - Include the same cookie status in `/api/health/` so the current tool page can show it without extra setup.
-   - Never expose the cookie contents or full secret values; only show safe status like `configured`, `available`, and a short path label.
+### 1. Clean up unwanted frontend pages and code
+- Remove the cookie settings page from navigation and routing.
+- Remove the deploy page from navigation and routing.
+- Remove frontend code that calls `/api/proxy/settings` if it is only used by the deleted settings flow.
+- Keep only the main usable downloader experience and essential informational pages.
 
-2. **Add a settings flow in the app**
-   - Create a Settings area reachable from the tool/deploy flow.
-   - Let the user choose between:
-     - referencing an existing backend file path such as `/app/cookies.txt`, and
-     - uploading/pasting a `cookies.txt` file for guidance.
-   - Because the actual Django backend runs on Render, the UI will provide exact Render environment variable instructions for `YTDLP_COOKIES_FILE`; it will not pretend the frontend can directly write files into Render.
+### 2. Rebuild the backend around a simpler, deployable Django API
+- Recheck `backend/core/urls.py`, `backend/downloader/urls.py`, Dockerfile, `render.yaml`, and backend environment defaults so Render serves real endpoints instead of “resource not found.”
+- Ensure these endpoints work:
+  - `GET /api/health/`
+  - `POST /api/detect/`
+  - `POST /api/download/`
+  - `POST /api/convert/`
+  - media serving for converted files
+- Improve startup safety so missing optional cookie/proxy settings do not break deployment.
+- Keep the backend compatible with Render Docker deploys.
 
-3. **Show cookie usage during detection/conversion**
-   - Update the backend status banner on `/tool` to display whether cookies are active.
-   - Add a small status line near Detect and Convert work states so users know if yt-dlp is running with cookies or without them.
+### 3. Add Render-ready cookies support without an in-app settings page
+- Add a backend `cookies.txt` placeholder/example file path and document how to replace it with real exported cookies before deploying.
+- Configure yt-dlp to use `YTDLP_COOKIES_FILE` when set.
+- Update `render.yaml` and backend docs with a clear path such as `/app/cookies.txt`.
+- The app will show cookie status from health/detect results, but not include a separate cookie settings page.
 
-4. **Fix the 504 convert experience**
-   - Convert jobs can exceed the frontend proxy/request timeout, especially on Render free instances and for long media.
-   - Keep the current proxy timeout guard, but improve the returned message so the UI explains that conversion is still a long-running backend operation and suggests retrying shorter media or using direct Detect/Download.
-   - Update Django `ConvertView` to surface the real conversion error type/message like Detect already does, instead of returning only `Request failed`.
+### 4. Make detect/download/preview more reliable
+- Update detection to return:
+  - title
+  - thumbnail
+  - playable preview URL when available
+  - best MP4 video options
+  - best MP3/audio conversion option
+  - clear site-specific error messages from yt-dlp
+- Update direct downloads to choose safe MP4-compatible formats where possible.
+- If a site only exposes separated video/audio tracks, use conversion/merge flow instead of returning unusable stream URLs.
 
-5. **Document the operational fix**
-   - Update backend docs and `.env.example` with the safe `YTDLP_COOKIES_FILE=/app/cookies.txt` setup and Render deployment notes.
-   - Mention that a true permanent fix for long conversions is an async queue/background worker; this plan will improve visibility and error handling without adding a database-backed queue.
+### 5. Restrict output choices to MP4 video and MP3 audio
+- Remove other audio/video target formats from backend validation and frontend controls.
+- For audio conversion, always use best available audio and export MP3 with high/best practical bitrate.
+- For video conversion, output MP4 only.
+
+### 6. Handle “better quality” realistically
+- The app can detect and select the best quality available from the source.
+- It cannot create true higher quality than the original source provides.
+- If the selected stream is low quality, the app will offer best-available MP4 conversion/merge rather than promising impossible upscaling.
+
+### 7. Improve frontend error handling so backend failures do not blank the site
+- Keep proxy routes returning user-readable JSON instead of throwing 502/504 runtime errors.
+- Show actionable messages for Render sleeping, timeout, unsupported site, YouTube bot checks, missing cookies, or extraction failure.
+- Make preview player display video/audio when a playable direct media URL is available, otherwise show why preview is unavailable.
+
+### 8. Update deployment configuration and docs
+- Rewrite backend README with Render deployment steps.
+- Confirm `render.yaml` points to the correct service name, Docker root, health path, host, CORS origins, and public media base URL.
+- Include exact env vars needed: `DJANGO_SECRET_KEY`, `API_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `PUBLIC_BASE_URL`, optional `YTDLP_COOKIES_FILE`, optional `YTDLP_PROXY`.
+
+## Technical notes
+- I will not claim support for every website. yt-dlp supports many sites, but some adult/streaming/piracy/protected sites may block cloud servers, require login, DRM, geo access, or violate platform restrictions.
+- YouTube often blocks datacenter traffic; cookies and sometimes a proxy are operational requirements, not code-only fixes.
+- Long conversions can exceed request timeouts on free hosting. I will improve messages and direct-download fallback, but a fully robust long-job converter would need a background queue/storage system.

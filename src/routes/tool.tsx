@@ -13,8 +13,6 @@ import {
   FileAudio,
   FileVideo,
   AlertTriangle,
-  Cookie,
-  Settings,
   Server,
 } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/PageShell";
@@ -96,46 +94,6 @@ function CookieStatusPill({ cookies }: { cookies?: YtdlpCookieStatus | null }) {
   return <Badge variant="secondary">No cookies</Badge>;
 }
 
-function CookieUsageNotice() {
-  const [cookies, setCookies] = useState<YtdlpCookieStatus | null>(null);
-  const [phase, setPhase] = useState<"checking" | "ready" | "error">("checking");
-
-  useEffect(() => {
-    let mounted = true;
-    api.settings()
-      .then((res) => {
-        if (!mounted) return;
-        setCookies(res.cookies);
-        setPhase("ready");
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setPhase("error");
-      });
-    return () => { mounted = false; };
-  }, []);
-
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
-      <Cookie className="size-4 shrink-0 text-primary" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">YouTube cookies</span>
-          {phase === "checking" ? <Badge variant="secondary">Checking</Badge> : <CookieStatusPill cookies={cookies} />}
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {phase === "error"
-            ? "Cookie status is unavailable. Detection will still run with the backend defaults."
-            : cookies?.message ?? "Checking whether yt-dlp will use cookies for restricted YouTube requests."}
-        </div>
-      </div>
-      <Button asChild variant="outline" size="sm">
-        <Link to="/settings"><Settings className="size-4" /> Settings</Link>
-      </Button>
-    </div>
-  );
-}
-
 function triggerBrowserDownload(url: string) {
   const a = document.createElement("a");
   a.href = url;
@@ -188,9 +146,6 @@ function BackendStatus() {
           <div className="flex flex-wrap items-center gap-2">
             <CookieStatusPill cookies={health?.cookies} />
             {health?.cookies?.pathLabel && <Badge variant="secondary">{health.cookies.pathLabel}</Badge>}
-            <Button asChild variant="outline" size="sm">
-              <Link to="/settings"><Settings className="size-4" /> Cookie settings</Link>
-            </Button>
           </div>
           {health?.cookies?.message && <p className="text-xs text-muted-foreground">{health.cookies.message}</p>}
         </AlertDescription>
@@ -203,10 +158,7 @@ function BackendStatus() {
       <AlertTriangle className="size-4" />
       <AlertTitle>Connect the downloader backend</AlertTitle>
       <AlertDescription className="space-y-3">
-        <p>{health?.message ?? "Deploy the Django backend and connect it with project secrets before running downloads."}</p>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/deploy">Open deployment guide</Link>
-        </Button>
+        <p>{health?.message ?? "Deploy the Django backend and connect it with BACKEND_URL and BACKEND_API_KEY project secrets before running downloads."}</p>
       </AlertDescription>
     </Alert>
   );
@@ -321,7 +273,6 @@ function DetectPanel() {
 
         <ProgressStrip phase={phase} />
         <ProgressStrip phase={downloadPhase} />
-        <CookieUsageNotice />
 
         {data && (
           <div className="space-y-4">
@@ -331,9 +282,12 @@ function DetectPanel() {
               )}
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{data.title}</div>
-                {data.previewUrl && (
-                  <video src={data.previewUrl} controls className="mt-2 max-h-40 rounded" />
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <CookieStatusPill cookies={data.cookies} />
+                  {data.cookies?.message && <span className="text-xs text-muted-foreground">{data.cookies.message}</span>}
+                </div>
+                {data.previewUrl && data.previewKind === "audio" && <audio src={data.previewUrl} controls className="mt-3 w-full" />}
+                {data.previewUrl && data.previewKind !== "audio" && <video src={data.previewUrl} controls className="mt-3 max-h-56 rounded" />}
               </div>
             </div>
 
@@ -395,7 +349,6 @@ function DetectPanel() {
 function ConvertPanel() {
   const [source, setSource] = useState("");
   const [target, setTarget] = useState("mp3");
-  const [bitrate, setBitrate] = useState("192k");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
@@ -416,22 +369,7 @@ function ConvertPanel() {
               <SelectTrigger id="target"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="mp3">MP3 (audio)</SelectItem>
-                <SelectItem value="m4a">M4A / AAC (audio)</SelectItem>
-                <SelectItem value="wav">WAV (audio, lossless)</SelectItem>
-                <SelectItem value="ogg">OGG (audio)</SelectItem>
                 <SelectItem value="mp4">MP4 (video, best)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bitrate">Audio bitrate</Label>
-            <Select value={bitrate} onValueChange={setBitrate}>
-              <SelectTrigger id="bitrate"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="128k">128 kbps</SelectItem>
-                <SelectItem value="192k">192 kbps</SelectItem>
-                <SelectItem value="256k">256 kbps</SelectItem>
-                <SelectItem value="320k">320 kbps</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -450,7 +388,6 @@ function ConvertPanel() {
         </Button>
 
         <ProgressStrip phase={phase} />
-        <CookieUsageNotice />
 
         <CopyrightDialog
           open={confirmOpen}
@@ -461,7 +398,7 @@ function ConvertPanel() {
             setPhase({ kind: "working", label: `Converting to ${target.toUpperCase()}` });
             try {
               await ensureBackendReady();
-              const { download_url } = await api.convert(source, target, bitrate);
+              const { download_url } = await api.convert(source, target);
               setPhase({ kind: "idle" });
               triggerBrowserDownload(download_url);
               toast.success("Conversion ready — download started");

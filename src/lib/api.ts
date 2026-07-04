@@ -14,7 +14,9 @@ export interface DetectResponse {
   title: string;
   thumbnail?: string;
   previewUrl?: string;
+  previewKind?: "video" | "audio" | null;
   streams: MediaStream[];
+  cookies?: YtdlpCookieStatus;
 }
 
 export interface MediaLink {
@@ -39,11 +41,6 @@ export interface YtdlpCookieStatus {
   readable: boolean;
   pathLabel?: string | null;
   message?: string;
-}
-
-export interface BackendSettings {
-  cookies: YtdlpCookieStatus;
-  proxy?: { configured: boolean };
 }
 
 export class ApiError extends Error {
@@ -125,7 +122,6 @@ async function rawGet<T>(path: string): Promise<T> {
 
 export const api = {
   health: () => rawGet<BackendHealth>("/api/proxy/health"),
-  settings: () => rawGet<BackendSettings>("/api/proxy/settings"),
   detect: (url: string) =>
     rawPost<DetectResponse>("/api/proxy/detect", { url }),
   download: (url: string, streamId: string) =>

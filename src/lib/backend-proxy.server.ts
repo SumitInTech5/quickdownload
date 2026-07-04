@@ -10,7 +10,7 @@ const FRIENDLY_MESSAGES: Record<number, string> = {
 const SETUP_MESSAGE =
   "Downloader backend is not connected yet. Deploy the Django backend and set BACKEND_URL and BACKEND_API_KEY in project secrets.";
 
-const PROXY_TIMEOUT_MS = 25_000;
+const PROXY_TIMEOUT_MS = 55_000;
 
 function getBackendConfig() {
   const base = (process.env.BACKEND_URL ?? "").replace(/\/+$/, "");
@@ -70,36 +70,6 @@ export async function checkBackendHealth(): Promise<Response> {
         configured: true,
         message: "Downloader backend isn't reachable. Check the Render service URL and redeploy if it is sleeping.",
       },
-      { status: 503 },
-    );
-  }
-}
-
-export async function checkBackendSettings(): Promise<Response> {
-  const { base, key } = getBackendConfig();
-  if (!base || !key) {
-    return Response.json(
-      { error: SETUP_MESSAGE },
-      { status: 503 },
-    );
-  }
-
-  try {
-    const upstream = await fetch(`${base}/api/settings/`, {
-      method: "GET",
-      headers: { "X-API-Key": key },
-      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-    });
-    const text = await upstream.text();
-    return new Response(text, {
-      status: upstream.status,
-      headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-      },
-    });
-  } catch {
-    return Response.json(
-      { error: "Downloader backend settings are not reachable right now." },
       { status: 503 },
     );
   }

@@ -1,0 +1,3 @@
+# Netscape HTTP Cookie File
+# Replace this placeholder with a real exported cookies.txt before deploying if YouTube blocks cloud traffic.
+# Keep real cookies private. Do not commit personal cookies to a public repository.
