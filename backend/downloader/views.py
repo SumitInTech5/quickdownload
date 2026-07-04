@@ -16,7 +16,7 @@ from .permissions import ApiKeyPermission
 
 log = logging.getLogger(__name__)
 
-ALLOWED_AUDIO = {"mp3", "aac", "wav", "ogg", "m4a"}
+ALLOWED_AUDIO = {"mp3"}
 ALLOWED_VIDEO = {"mp4"}
 ALLOWED_TARGETS = ALLOWED_AUDIO | ALLOWED_VIDEO
 ALLOWED_BITRATES = {"64", "96", "128", "160", "192", "256", "320"}
@@ -25,9 +25,6 @@ ALLOWED_BITRATES = {"64", "96", "128", "160", "192", "256", "320"}
 # Allows the "best" alias plus digits, letters, dashes, underscores, dots and a
 # single "+" (used by yt-dlp to combine one video and one audio stream).
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+(\+[A-Za-z0-9_.\-]+)?$")
-
-GENERIC_ERROR = "Request failed. Please try again."
-
 
 def _host_is_public(host: str) -> bool:
     """Resolve the host and reject loopback, private, link-local, and
@@ -92,6 +89,23 @@ def _validate_bitrate(raw) -> str | None:
     return v
 
 
+def _extract_error(exc: Exception) -> str:
+    message = (str(exc).strip() or type(exc).__name__).replace("ERROR: ", "").strip()
+    lower = message.lower()
+    if "sign in to confirm" in lower or "not a bot" in lower or "cookies" in lower:
+        return (
+            f"YouTube blocked this cloud request: {message[:260]} "
+            "Replace backend/cookies.txt with a real Netscape cookies export and set YTDLP_COOKIES_FILE=/app/cookies.txt on Render."
+        )
+    if "unsupported url" in lower:
+        return "This website or URL is not supported by yt-dlp. Try a public, non-DRM media page."
+    if "drm" in lower:
+        return "This source appears to use DRM or protected streaming, which is not supported."
+    if "http error 403" in lower or "forbidden" in lower:
+        return "The source blocked the backend request. Cookies or a proxy may be required, or the site may not allow downloading."
+    return message[:500]
+
+
 class HealthView(APIView):
     permission_classes = []
 
@@ -111,16 +125,6 @@ class HealthView(APIView):
         })
 
 
-class SettingsView(APIView):
-    permission_classes = [ApiKeyPermission]
-
-    def get(self, request):
-        return Response({
-            "cookies": services.cookie_status(),
-            "proxy": {"configured": bool(getattr(settings, "YTDLP_PROXY", None))},
-        })
-
-
 class DetectView(APIView):
     permission_classes = [ApiKeyPermission]
 
@@ -132,10 +136,7 @@ class DetectView(APIView):
             return Response(services.detect(url))
         except Exception as exc:
             log.exception("detect failed")
-            return Response(
-                {"error": f"Extraction failed: {type(exc).__name__}: {str(exc)[:300]}"},
-                status=502,
-            )
+            return Response({"error": f"Extraction failed: {_extract_error(exc)}"}, status=502)
 
 
 class DownloadView(APIView):
@@ -150,9 +151,9 @@ class DownloadView(APIView):
             return Response({"error": "Invalid or missing format_id."}, status=400)
         try:
             return Response(services.resolve_download(url, format_id))
-        except Exception:
+        except Exception as exc:
             log.exception("download failed")
-            return Response({"error": GENERIC_ERROR}, status=502)
+            return Response({"error": f"Download failed: {_extract_error(exc)}"}, status=502)
 
 
 class ConvertView(APIView):
@@ -166,7 +167,7 @@ class ConvertView(APIView):
             return Response({"error": "Invalid or missing URL."}, status=400)
         if target_format not in ALLOWED_TARGETS:
             return Response(
-                {"error": f"Unsupported target_format. Allowed: {sorted(ALLOWED_TARGETS)}"},
+                {"error": "Unsupported target_format. Use mp4 for video or mp3 for audio."},
                 status=400,
             )
         if bitrate == "__invalid__":
@@ -178,7 +179,4 @@ class ConvertView(APIView):
             return Response(services.convert(url, target_format, bitrate))
         except Exception as exc:
             log.exception("convert failed")
-            return Response(
-                {"error": f"Conversion failed: {type(exc).__name__}: {str(exc)[:300]}"},
-                status=502,
-            )
+            return Response({"error": f"Conversion failed: {_extract_error(exc)}"}, status=502)
