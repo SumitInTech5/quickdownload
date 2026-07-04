@@ -62,11 +62,11 @@ DATABASES = {
     }
 }
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", "/tmp/ytdlp-media"))
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -78,7 +78,7 @@ if _cors == "*" or not _cors:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors.split(",") if o.strip()]
-CORS_ALLOW_HEADERS = ["content-type", "x-api-key", "authorization"]
+CORS_ALLOW_HEADERS = ["accept", "authorization", "content-type", "origin", "x-api-key", "x-requested-with"]
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
