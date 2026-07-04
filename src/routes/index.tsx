@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 
 const features = [
   { icon: Download, title: "Original-quality download", desc: "We list every available stream with size and bitrate so you pick the source you want." },
-  { icon: Shuffle, title: "Format conversion", desc: "MP4 → MP3, AAC, WAV and MP3 → MP4 (with cover art). Choose bitrate and sample rate." },
+  { icon: Shuffle, title: "MP4 and MP3 conversion", desc: "Export best-available MP4 video or extract best-quality MP3 audio from supported public sources." },
   { icon: ListChecks, title: "Batch queue", desc: "Add multiple URLs; we process them sequentially with progress and resume." },
   { icon: Eye, title: "Safe preview", desc: "Play a short preview of detected media before you commit to a download." },
   { icon: ShieldCheck, title: "Copyright-first", desc: "Every download requires confirmation. We honor takedowns and never circumvent DRM." },
@@ -51,7 +51,7 @@ function Index() {
             </h1>
             <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">
               Paste a link, pick the quality, get the file. All Video Downloader detects every
-              available stream and converts between video and audio formats — responsibly and
+              available stream and converts to MP4 video or MP3 audio — responsibly and
               without DRM circumvention.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -116,7 +116,7 @@ function Index() {
           {[
             { n: "01", t: "Paste a URL", d: "Drop in any public page link — articles, social posts, video pages." },
             { n: "02", t: "Pick a stream", d: "We list every available quality with size and format up front." },
-            { n: "03", t: "Download or convert", d: "Get the original file or transcode to MP3, AAC, WAV, MP4." },
+            { n: "03", t: "Download or convert", d: "Get the original file or transcode to MP3 audio or MP4 video." },
           ].map((s) => (
             <div key={s.n} className="rounded-xl border border-border bg-card p-6">
               <div className="font-display text-3xl font-bold text-primary">{s.n}</div>
