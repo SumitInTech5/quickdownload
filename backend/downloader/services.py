@@ -26,7 +26,7 @@ def _base_opts() -> Dict[str, Any]:
         "retries": 2,
         "fragment_retries": 2,
         "socket_timeout": 25,
-        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+        
     }
     if settings.YTDLP_COOKIES_FILE:
         opts["cookiefile"] = settings.YTDLP_COOKIES_FILE

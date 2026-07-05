@@ -31,19 +31,17 @@ Allowed `target_format`: `mp3` for audio and `mp4` for video.
 
 ## YouTube cookies
 
-YouTube may block shared cloud hosts with bot checks. To let yt-dlp reuse an authorized browser session:
+YouTube may block shared cloud hosts with bot checks. To let yt-dlp reuse an authorized browser session, supply cookies via a **Render Secret File** — never commit real cookies to git.
 
-1. Export a Netscape-format `cookies.txt` file from a browser profile that can view YouTube.
-2. Replace `backend/cookies.txt` with the exported file before deploying, or mount a private Render secret file at the same path. Do not commit personal cookies to a public repo.
-3. Set this Render environment variable, already included in `render.yaml`:
+1. Export a Netscape-format `cookies.txt` from a browser signed into YouTube (e.g. the "Get cookies.txt LOCALLY" extension).
+2. In the Render Dashboard, open your service → **Environment** → **Secret Files** → **Add Secret File**.
+   - Filename: `cookies.txt`
+   - Contents: paste the exported file.
+   Render mounts secret files at `/etc/secrets/<filename>`.
+3. `render.yaml` already sets `YTDLP_COOKIES_FILE=/etc/secrets/cookies.txt`.
+4. Redeploy and check `/api/health/`. The response includes `cookies.available: true` when the file exists, is readable, and contains cookie rows.
 
-```text
-YTDLP_COOKIES_FILE=/app/cookies.txt
-```
-
-4. Redeploy the backend and check `/api/health/`. The response includes `cookies.available: true` when the file exists, is readable, and contains cookie rows.
-
-Cookies help with YouTube bot checks, but they do not bypass DRM and they do not remove request-time limits for very long conversions.
+Do NOT edit `backend/cookies.txt` in the repo with real cookies — that file is a gitignored placeholder for safety. Cookies help with bot checks but do not bypass DRM, and they are loosely bound to the IP that exported them: cookies exported from your home may still be rejected from a datacenter IP.
 
 ## Connect the Lovable frontend
 
@@ -86,7 +84,8 @@ curl -X POST http://localhost:8000/api/detect/ \
 
 ## Reliability notes
 
-- YouTube can rate-limit shared cloud IPs. If this happens, replace `backend/cookies.txt` with a real export and optionally add `YTDLP_PROXY` on the backend host.
+- YouTube can rate-limit shared cloud IPs. Upload a fresh `cookies.txt` as a Render Secret File at `/etc/secrets/cookies.txt` (see "YouTube cookies" above).
+- Cookies are loosely IP-bound. Cookies exported from your home browser may still be rejected when replayed from a datacenter IP. If cookies alone don't work, the next steps are (a) route yt-dlp through a residential proxy by setting `YTDLP_PROXY`, or (b) configure a PO Token provider — see https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide.
 - Long conversions can exceed frontend/proxy request windows. For production-grade long jobs, move conversion into a queue/background worker and return a job ID immediately.
 - DRM sources are not supported. yt-dlp cannot and should not bypass DRM.
 - Render free services may sleep. The first request after sleeping can take longer.

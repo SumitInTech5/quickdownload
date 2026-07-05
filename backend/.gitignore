@@ -4,3 +4,5 @@ staticfiles/
 __pycache__/
 *.pyc
 .venv/
+cookies.txt
+cookies.*.txt
