@@ -26,26 +26,51 @@ ALLOWED_BITRATES = {"64", "96", "128", "160", "192", "256", "320"}
 # single "+" (used by yt-dlp to combine one video and one audio stream).
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+(\+[A-Za-z0-9_.\-]+)?$")
 
+def _ip_is_public(ip_str: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return not (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+# --- SSRF hardening: enforce public-IP-only resolution at connect time. ---
+# Wrapping socket.getaddrinfo globally prevents DNS rebinding: even if a
+# hostname resolves to a public IP during pre-validation and to a private IP
+# moments later when yt-dlp/urllib actually connects, the connect-time
+# resolution passes through this same filter and any private/reserved
+# addresses are stripped, causing the connection to fail closed.
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _safe_getaddrinfo(host, *args, **kwargs):
+    infos = _original_getaddrinfo(host, *args, **kwargs)
+    filtered = [info for info in infos if _ip_is_public(info[4][0])]
+    if not filtered:
+        raise socket.gaierror(f"blocked non-public address for host {host!r}")
+    return filtered
+
+
+if socket.getaddrinfo is not _safe_getaddrinfo:
+    socket.getaddrinfo = _safe_getaddrinfo
+
+
 def _host_is_public(host: str) -> bool:
     """Resolve the host and reject loopback, private, link-local, and
     otherwise reserved addresses to prevent SSRF via yt-dlp fetches."""
     try:
-        infos = socket.getaddrinfo(host, None)
+        infos = _original_getaddrinfo(host, None)
     except socket.gaierror:
         return False
     for info in infos:
-        try:
-            ip = ipaddress.ip_address(info[4][0])
-        except ValueError:
-            return False
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
+        if not _ip_is_public(info[4][0]):
             return False
     return True
 
