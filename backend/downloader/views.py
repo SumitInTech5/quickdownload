@@ -112,7 +112,7 @@ def _extract_error(exc: Exception) -> str:
         return "This source appears to use DRM or protected streaming, which is not supported."
     if "http error 403" in lower or "forbidden" in lower:
         return "The source blocked the backend request. Cookies or a proxy may be required, or the site may not allow downloading."
-    return message[:500]
+    return "Media extraction failed. The source may be unavailable, region-locked, or not supported."
 
 
 class HealthView(APIView):
