@@ -25,7 +25,16 @@ if not _secret:
         )
 SECRET_KEY = _secret
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+_allowed = os.environ.get("ALLOWED_HOSTS", "").strip()
+if not _allowed:
+    if DEBUG:
+        _allowed = "localhost,127.0.0.1"
+    else:
+        raise RuntimeError(
+            "ALLOWED_HOSTS environment variable is required in production. "
+            "Set it to a comma-separated list of your deployment's hostnames."
+        )
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
