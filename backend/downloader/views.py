@@ -119,8 +119,8 @@ def _extract_error(exc: Exception) -> str:
     lower = message.lower()
     if "sign in to confirm" in lower or "not a bot" in lower or "cookies" in lower:
         return (
-            f"YouTube blocked this request: {message[:260]} "
-            "This usually means either the cookies file is missing/stale, or YouTube has flagged this cloud host's IP address "
+            "YouTube blocked this request (bot detection). "
+            "This usually means the cookies file is missing/stale, or YouTube has flagged this cloud host's IP address "
             "(common on Render's free tier even with valid cookies). "
             "Upload a fresh Netscape cookies.txt export as a Render Secret File mounted at /etc/secrets/cookies.txt. "
             "See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies and "
@@ -128,7 +128,7 @@ def _extract_error(exc: Exception) -> str:
         )
     if "po token" in lower or "requested format is not available" in lower:
         return (
-            f"YouTube requires a PO Token for this request: {message[:260]} "
+            "YouTube requires a PO Token for this request. "
             "See https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide for configuring a PO Token provider."
         )
     if "unsupported url" in lower:
